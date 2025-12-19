@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Custom scrollbar for sticky notes */
+.overflow-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth transitions for everything */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
