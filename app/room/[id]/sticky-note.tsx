@@ -1,12 +1,9 @@
 import { StickyPageProps } from "./page";
 
-export default function StickyNote({
-  noteName,
-  content,
-  createdBy,
-  x,
-  y,
-}: StickyPageProps) {
+export default function StickyNote(
+  { noteName, content, createdBy, id, x, y }: StickyPageProps,
+  { showNoteBtn }: { showNoteBtn: boolean }
+) {
   // Use hash of noteName for consistent styling per note
   const getStyleIndex = (str: string, length: number) => {
     let hash = 0;
@@ -35,9 +32,11 @@ export default function StickyNote({
   ];
   const color =
     colors[getStyleIndex(noteName + (createdBy || ""), colors.length)];
+  console.log("Note Name:", noteName);
 
   return (
     <div
+      id={id}
       style={{
         left: `${x}%`,
         top: `${y}%`,

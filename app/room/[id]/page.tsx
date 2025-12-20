@@ -108,26 +108,40 @@ export default function CanvasPage() {
     y: 0,
   });
   const [showForm, setShowForm] = useState<boolean>(false);
-  const [noteData, setNoteData] = useState<StickyPageProps | null>(null);
-
-  // Use dummy data if no props provided
-  //   const notesData =
-  //     note?.data && note?.data?.length > 0 ? note.data : dummyNotes;
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [noteData, setNoteData] = useState<StickyPageProps[] | null>([
+    ...dummyNotes,
+  ]);
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const target = (e.target as HTMLElement).closest(".ignore");
-    if (target) return;
 
+    // If double-clicked on a sticky note
+    if (target) {
+      const noteId = target.getAttribute("data-note-id");
+      if (noteId) {
+        setSelectedNoteId(Number(noteId));
+      }
+      return;
+    }
+
+    // If double-clicked on empty space - create new note
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setCoordinates({ x, y });
     setShowForm(true);
+    setSelectedNoteId(null); // Clear selection when creating new note
+  };
+
+  const handleClickOutside = () => {
+    setSelectedNoteId(null); // Clear selection when clicking outside
   };
 
   return (
     <div
       onDoubleClick={handleDoubleClick}
+      onClick={handleClickOutside}
       className="relative w-full h-screen p-[3vh]"
     >
       {/* Header */}
@@ -147,9 +161,14 @@ export default function CanvasPage() {
           updateNoteData={setNoteData}
         />
       )}
-      {dummyNotes.map((note, index) => (
-        <StickyNote key={index} {...note} />
-      ))}
+      {noteData &&
+        noteData.map((note) => (
+          <StickyNote
+            key={note.id}
+            {...note}
+            showButtons={selectedNoteId === note.id}
+          />
+        ))}
     </div>
   );
 }
