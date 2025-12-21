@@ -9,7 +9,7 @@ import NoteForm from "./note-form";
 
 // Sticky Note Properties
 export interface StickyPageProps {
-  id: number;
+  id: string;
   noteName: string;
   createdBy: string | null;
   content: string | number;
@@ -17,18 +17,13 @@ export interface StickyPageProps {
   y: number;
 }
 
-// Array that contains Sticky Notes data
-interface StickyNoteDataArray {
-  length: number;
-  data: Array<StickyPageProps>;
-}
 // For Coordinates
 export type NoteCoordinates = Pick<StickyPageProps, "x" | "y">;
 
 // Dummy data for testing
 const dummyNotes: StickyPageProps[] = [
   {
-    id: 1,
+    id: "k3j8d9f2a",
     noteName: "Meeting Notes 📅",
     createdBy: "Alice Johnson",
     content:
@@ -37,7 +32,7 @@ const dummyNotes: StickyPageProps[] = [
     y: 20,
   },
   {
-    id: 2,
+    id: "m5n7p1q4w",
     noteName: "Grocery List 🛒",
     createdBy: "Bob Smith",
     content:
@@ -46,7 +41,7 @@ const dummyNotes: StickyPageProps[] = [
     y: 15,
   },
   {
-    id: 3,
+    id: "r8t2y6u9e",
     noteName: "Project Ideas 💡",
     createdBy: "Carol Davis",
     content:
@@ -55,7 +50,7 @@ const dummyNotes: StickyPageProps[] = [
     y: 25,
   },
   {
-    id: 4,
+    id: "a4s7d3f5g",
     noteName: "Motivation Quote ✨",
     createdBy: null,
     content:
@@ -64,7 +59,7 @@ const dummyNotes: StickyPageProps[] = [
     y: 55,
   },
   {
-    id: 5,
+    id: "h9j1k8l0z",
     noteName: "Workout Routine 💪",
     createdBy: "David Lee",
     content:
@@ -73,7 +68,7 @@ const dummyNotes: StickyPageProps[] = [
     y: 60,
   },
   {
-    id: 6,
+    id: "x2c4v7b6n",
     noteName: "Book Recommendations 📚",
     createdBy: "Emma Wilson",
     content:
@@ -82,7 +77,7 @@ const dummyNotes: StickyPageProps[] = [
     y: 50,
   },
   {
-    id: 7,
+    id: "q3w5e8r0t",
     noteName: "Weekend Plans 🎉",
     createdBy: "Frank Brown",
     content:
@@ -91,7 +86,7 @@ const dummyNotes: StickyPageProps[] = [
     y: 75,
   },
   {
-    id: 8,
+    id: "y7u2i5o9p",
     noteName: "Code Snippet 💻",
     createdBy: "Grace Martinez",
     content:
@@ -102,17 +97,23 @@ const dummyNotes: StickyPageProps[] = [
 ];
 
 export default function CanvasPage() {
+  // ** States Management **
+
   // State to manage notes coordinates and form visibility
   const [coordinates, setCoordinates] = useState<NoteCoordinates | null>({
     x: 0,
     y: 0,
   });
-  const [showForm, setShowForm] = useState<boolean>(false);
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState<boolean>(false); // For showing and hiding form
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null); // Note Id for selected Note
   const [noteData, setNoteData] = useState<StickyPageProps[] | null>([
     ...dummyNotes,
-  ]);
+  ]); // All notes data Array
+  // UseState For storing the note being edited
+  const [editNoteData, setEditNoteData] =
+    useState<Partial<StickyPageProps> | null>(null); // Data for note being edited
 
+  // Double click handler for canvas actions
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const target = (e.target as HTMLElement).closest(".ignore");
@@ -121,7 +122,7 @@ export default function CanvasPage() {
     if (target) {
       const noteId = target.getAttribute("data-note-id");
       if (noteId) {
-        setSelectedNoteId(Number(noteId));
+        setSelectedNoteId(noteId);
       }
       return;
     }
@@ -134,8 +135,30 @@ export default function CanvasPage() {
     setSelectedNoteId(null); // Clear selection when creating new note
   };
 
+  // If clicked outside any note clear note selection
   const handleClickOutside = () => {
     setSelectedNoteId(null); // Clear selection when clicking outside
+  };
+
+  // If note delete is triggered
+  const handleNoteDelete = (noteId: string) => {
+    setNoteData((prev) => {
+      return prev ? prev.filter((note) => note.id !== noteId) : null;
+    });
+  };
+
+  // If note edit is triggered
+  const handleNoteEdit = (noteId: string) => {
+    // Logic to show form with existing note data
+    const existingNote = noteData?.find((note) => note.id === noteId);
+    if (existingNote) {
+      setCoordinates({
+        x: existingNote.x,
+        y: existingNote.y,
+      });
+    }
+    setShowForm(true);
+    setEditNoteData(existingNote);
   };
 
   return (
@@ -159,6 +182,8 @@ export default function CanvasPage() {
           coordinates={coordinates as NoteCoordinates}
           hideForm={() => setShowForm(false)}
           updateNoteData={setNoteData}
+          editNoteData={editNoteData}
+          updateEditNoteData={(data) => setEditNoteData(data)}
         />
       )}
       {noteData &&
@@ -167,6 +192,8 @@ export default function CanvasPage() {
             key={note.id}
             {...note}
             showButtons={selectedNoteId === note.id}
+            handleNoteDelete={handleNoteDelete}
+            handleNoteEdit={handleNoteEdit}
           />
         ))}
     </div>

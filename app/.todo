@@ -1,4 +1,21 @@
 ✔ Canvas Wrapper: Ek parent div banao jo relative w-full h-screen ho. @started(25-12-19 13:52) @done(25-12-19 15:03) @lasted(1h11m15s)
 ✔ Double-Click Logic: Is parent div par onDoubleClick event lagao. @started(25-12-19 15:03) @done(25-12-19 15:03) @lasted(23s)
 ✔ Coordinate Calculation: Click ke clientX aur clientY ko container ki width/height se divide karke percentage (%) nikalo. @started(25-12-19 15:03) @done(25-12-19 15:03) @lasted(35s)
-☐ State Management: Ek notes array rakho state mein (useState for now, then Zustand as per source rules )
+✔ State Management: Ek notes array rakho state mein (useState for now, then Zustand as per source rules ) @done(25-12-21 06:50)
+
+**  Tasks for Today morning
+=> Implement edit and delete functionality
+ -> Edit 
+ -> Delete
+ -> Test both fn
+
+ => Learn how to implement socket.io in nextjs
+ -> Implement basics of it 
+ -> Test it
+
+ => Learn the drag and drop fn
+ => Read mouse movements figure out 
+ -> How to send mouse movements to other clients 
+ -> How to recieve it 
+ -> Test it 
+ 

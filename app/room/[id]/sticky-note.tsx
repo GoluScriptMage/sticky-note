@@ -1,9 +1,28 @@
 import { StickyPageProps } from "./page";
 
-export default function StickyNote(
-  { noteName, content, createdBy, id, x, y }: StickyPageProps,
-  { showNoteBtn }: { showNoteBtn: boolean }
-) {
+// Interfaces
+
+interface NoteActions {
+  showButtons?: boolean;
+  handleNoteDelete: (noteId: string) => void;
+  handleNoteEdit: (noteId: string) => void;
+}
+
+// Interface Noteactions & StickyPageProps combined
+interface StickyNoteProps extends StickyPageProps, NoteActions {}
+
+export default function StickyNote({
+  noteName,
+  content,
+  createdBy,
+  id,
+  x,
+  y,
+  showButtons = false,
+  handleNoteDelete,
+  handleNoteEdit,
+}: StickyNoteProps) {
+  
   // Use hash of noteName for consistent styling per note
   const getStyleIndex = (str: string, length: number) => {
     let hash = 0;
@@ -32,17 +51,16 @@ export default function StickyNote(
   ];
   const color =
     colors[getStyleIndex(noteName + (createdBy || ""), colors.length)];
-  console.log("Note Name:", noteName);
 
   return (
     <div
-      id={id}
+      data-note-id={id}
       style={{
         left: `${x}%`,
         top: `${y}%`,
       }}
       className={`${color} ${rotation} ignore
-                     absolute w-[18vw] min-w-[250px] h-[30vh] min-h-[200px]
+                     absolute w-[18vw] min-w-62.5 h-[30vh] min-h-50
                      rounded-sm border-t-8 border-l border-r border-b
                      shadow-lg hover:shadow-2xl
                      transition-all duration-300 ease-in-out
@@ -56,6 +74,76 @@ export default function StickyNote(
         className="absolute top-0 left-[40%] w-[20%] h-2 bg-white/40 
                       rounded-sm shadow-inner"
       ></div>
+
+      {/* Edit and Delete Buttons - shown when note is selected */}
+      {showButtons && (
+        <div className="absolute top-[1.5vh] right-[1.5vh] flex gap-[0.5vh] z-20">
+          {/* Edit Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log("Edit note:", id);
+              // Edit functionality will be added later
+              handleNoteEdit(id);
+            }}
+            className="w-[3vh] h-[3vh] p-[0.5vh]
+                       flex items-center justify-center
+                       bg-white/90 hover:bg-blue-500 
+                       text-gray-700 hover:text-white rounded
+                       shadow-md hover:shadow-lg
+                       transition-all duration-200
+                       active:scale-90"
+            title="Edit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-full h-full"
+            >
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+            </svg>
+          </button>
+
+          {/* Delete Button */}
+          <button
+            onClick={(e) => {
+              // e.stopPropagation();
+              console.log("Delete note:", id);
+              // Delete functionality will be added later
+              handleNoteDelete(id);
+            }}
+            className="w-[3vh] h-[3vh] p-[0.5vh]
+                       flex items-center justify-center
+                       bg-white/90 hover:bg-red-500 
+                       text-gray-700 hover:text-white rounded
+                       shadow-md hover:shadow-lg
+                       transition-all duration-200
+                       active:scale-90"
+            title="Delete"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-full h-full"
+            >
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto">

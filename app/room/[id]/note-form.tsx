@@ -1,28 +1,59 @@
 import React, { useState } from "react";
 import { StickyPageProps, type NoteCoordinates } from "./page";
-import type { HtmlContext } from "next/dist/server/route-modules/pages/vendored/contexts/entrypoints";
+
+// Interfaces
+
+interface NoteActions {
+  hideForm: () => void;
+  updateNoteData: React.Dispatch<
+    React.SetStateAction<StickyPageProps[] | null>
+  >;
+  editNoteData?: Partial<StickyPageProps | null>;
+  updateEditNoteData: React.Dispatch<
+    React.SetStateAction<Partial<StickyPageProps> | null>
+  >;
+}
+
+// Combine NoteActions & NoteCoordinates
+interface NoteFormProps extends NoteActions, NoteCoordinates {}
 
 export default function NoteForm({
   coordinates,
   hideForm,
   updateNoteData,
-}: {
-  coordinates: NoteCoordinates;
-  hideForm: () => void;
-  updateNoteData: React.Dispatch<
-    React.SetStateAction<StickyPageProps[] | null>
-  >;
-}) {
+  editNoteData,
+  updateEditNoteData,
+}: NoteFormProps) {
+
+    // Local State For note Inputs Data
   const [note, setNote] = useState<Partial<StickyPageProps>>({
-    noteName: "",
-    content: "",
-    createdBy: null,
+    noteName: editNoteData?.noteName || "",
+    content: editNoteData?.content || "",
+    createdBy: editNoteData?.createdBy || "Anonymous",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    updateEditNoteData(null);
+    console.log("Edit Note Data Cleared", note, editNoteData);
     console.log("Form submitted");
 
+    if (editNoteData?.id) {
+      hideForm();
+      return updateNoteData((prevNotes) => {
+        return prevNotes
+          ? prevNotes.map((n) =>
+              n.id === editNoteData.id
+                ? {
+                    ...n,
+                    noteName: note.noteName || n.noteName,
+                    content: note.content || n.content,
+                  }
+                : n
+            )
+          : [newNote];
+      });
+    }
     // Create new note with all required fields
     const newNote: StickyPageProps = {
       id: Math.random().toString(36).substr(2, 9), // Use timestamp as unique ID
@@ -107,6 +138,7 @@ export default function NoteForm({
           autoComplete="off"
           autoFocus
           onChange={(e) => handleChange(e)}
+          value={note.noteName}
           className="w-full bg-transparent border-none outline-none
                      text-[2vh] font-bold text-gray-900 placeholder:text-gray-600/50
                      pb-[0.8vh] border-b-2 border-gray-700/20
@@ -118,6 +150,7 @@ export default function NoteForm({
 
         {/* Content textarea - auto-grows */}
         <textarea
+          value={note.content}
           id="content"
           name="content"
           placeholder="Write your note here..."
@@ -135,7 +168,7 @@ export default function NoteForm({
         {/* Bottom section with submit button */}
         <div className="flex items-center justify-between pt-[1vh] border-t border-gray-700/15 mt-auto">
           <small className="text-[1.3vh] text-gray-700 italic font-medium">
-            ✍️ New note
+            {`✍️ ${note.createdBy || "Anonymous"}`}
           </small>
 
           <button
