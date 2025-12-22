@@ -1,36 +1,79 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { StickyPageProps } from '@/components/canvas/page';
+import { dummyNotes } from "@/constants/dummyData";
+import type { NoteCoordinates, StickyNote, UserData } from "@/types";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-interface StickyState {
-  notes: StickyPageProps[];
-  addNote: (note: StickyPageProps) => void;
-  deleteNote: (id: string) => void;
-  updateNote: (id: string, updates: Partial<StickyPageProps>) => void;
+export interface StickyStore {
+  notes: StickyNote[];
+  userData: UserData | null;
+  coordinates: NoteCoordinates | null;
+  showForm: boolean;
+  selectNoteId: string | null;
+  editNote: Partial<StickyNote> | null;
+
+  handleNoteDelete: (noteId: string) => void;
+  handleNoteEdit: (noteId: string) => void;
+  setStore: (updates: Partial<StickyStore>) => void;
+  addNote: (newNote: StickyNote) => void;
+  updateExistingNote: (updateNote: Partial<StickyNote>) => void;
 }
 
-export const useStickyStore = create<StickyState>()(
+// pass the persist middleware into create(...) and initialize all fields/handlers
+export const useStickyStore = create<StickyStore>()(
   persist(
-    (set) => ({
-      notes: [],
+    (set, get) => ({
+      notes: [...dummyNotes],
+      userData: null,
+      coordinates: null,
+      showForm: false,
+      selectNoteId: null,
+      editNote: null,
 
-      addNote: (note) =>
-        set((state) => ({ notes: [...state.notes, note] })),
-
-      deleteNote: (id) =>
+      // For any Logic to update state
+      setStore: (updates) => {
         set((state) => ({
-          notes: state.notes.filter((n) => n.id !== id),
-        })),
+          ...state,
+          ...updates,
+        }));
+      },
 
-      updateNote: (id, updates) =>
+      // Update notes array
+      addNote: (newNote) => {
         set((state) => ({
-          notes: state.notes.map((n) =>
-            n.id === id ? { ...n, ...updates } : n
-          ),
-        })),
+          notes: [...state.notes, newNote],
+        }));
+      },
+
+      // update existing note
+      updateExistingNote: (updateNote) => {
+        set((state) => ({
+          notes: state.notes.map((n) => {
+            return n.id === updateNote.id ? { ...n, ...updateNote } : n;
+          }),
+        }));
+      },
+
+      // If note delete is triggered
+      handleNoteDelete: (noteId) => {
+        set((state) => ({
+          notes: state.notes.filter((note) => note.id !== noteId),
+        }));
+      },
+
+      // If note edit is triggered
+      handleNoteEdit: (noteId) => {
+        const note = get().notes.find((n) => n.id === noteId);
+        if (note) {
+          set(() => ({
+            coordinates: { x: note.x, y: note.y },
+            showForm: true,
+            editNote: note,
+          }));
+        }
+      },
     }),
     {
-      name: 'sticky-storage', // name of the item in storage (must be unique)
+      name: "sticky-store",
     }
   )
 );

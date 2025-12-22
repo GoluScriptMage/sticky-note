@@ -1,28 +1,38 @@
-import { StickyPageProps } from "./page";
+import { useStickyStore, type StickyStore } from "@/store/useStickyStore";
+import { StickyNote } from "./page";
+import { useShallow } from "zustand/shallow";
+import type { StickyNote, StickyNote } from "@/types";
 
 // Interfaces
 
-interface NoteActions {
+interface Actions extends StickyNote {
   showButtons?: boolean;
-  handleNoteDelete: (noteId: string) => void;
-  handleNoteEdit: (noteId: string) => void;
+  key?: string;
 }
 
-// Interface Noteactions & StickyPageProps combined
-interface StickyNoteProps extends StickyPageProps, NoteActions {}
-
-export default function StickyNote({
-  noteName,
-  content,
-  createdBy,
+export default function StickyNoteComponent({
+  showButtons = false,
   id,
+  noteName,
+  createdBy,
+  content,
   x,
   y,
-  showButtons = false,
-  handleNoteDelete,
-  handleNoteEdit,
-}: StickyNoteProps) {
-  
+}: Actions) {
+  // Getting things out from store
+  const {
+    handleNoteEdit,
+    handleNoteDelete,
+  }: Partial<StickyStore> = useStickyStore(
+    useShallow((state) => ({
+      notes: state.notes,
+      handleNoteEdit: state.handleNoteEdit,
+      handleNoteDelete: state.handleNoteDelete,
+      setStore: state.setStore,
+    }))
+  );
+
+
   // Use hash of noteName for consistent styling per note
   const getStyleIndex = (str: string, length: number) => {
     let hash = 0;

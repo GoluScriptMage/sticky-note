@@ -1,12 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-// Your TS interface for consistency
-interface UserData {
-  sync_userName: string;
-  sync_userId: string;
-}
+import { UserData } from "@/types";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +34,7 @@ export default function Home() {
 
   const navigateToRoom = () => {
     // Redirecting to a random room ID as planned
-    const roomId = Math.random().toString(36).substr(2, 6);
+    const roomId = crypto.randomUUID();
     router.push(`/room/${roomId}`);
   };
 

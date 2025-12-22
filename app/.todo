@@ -4,10 +4,10 @@
 ✔ State Management: Ek notes array rakho state mein (useState for now, then Zustand as per source rules ) @done(25-12-21 06:50)
 
 **  Tasks for Today morning
-=> Implement edit and delete functionality
- -> Edit 
- -> Delete
- -> Test both fn
+✔ => Implement edit and delete functionality @done(25-12-21 14:15)
+ ✔ -> Edit @done(25-12-21 14:15)
+ ✔ -> Delete @done(25-12-21 14:15)
+ ✔ -> Test both fn @done(25-12-21 14:15)
 
  => Learn how to implement socket.io in nextjs
  -> Implement basics of it 
@@ -18,4 +18,4 @@
  -> How to send mouse movements to other clients 
  -> How to recieve it 
  -> Test it 
- 
+

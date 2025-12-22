@@ -1,78 +1,60 @@
 import React, { useState } from "react";
-import { StickyPageProps, type NoteCoordinates } from "./page";
+import { StickyNote } from "./page";
+import { useStickyStore, type StickyStore } from "@/store/useStickyStore";
+import { useShallow } from "zustand/shallow";
 
-// Interfaces
+export default function NoteForm() {
+  // Getting things out from store
+  const {
+    setStore,
+    coordinates,
+    editNote,
+    updateExistingNote,
+    addNote,
+    handleNoteEdit,
+  }: StickyStore = useStickyStore(
+    useShallow((state) => ({
+      coordinates: state.coordinates,
+      editNote: state.editNote,
+      setStore: state.setStore,
+      updateExistingNote: state.updateExistingNote,
+      addNote: state.addNote,
+      handleNoteEdit: state.handleNoteEdit,
+    }))
+  );
 
-interface NoteActions {
-  hideForm: () => void;
-  updateNoteData: React.Dispatch<
-    React.SetStateAction<StickyPageProps[] | null>
-  >;
-  editNoteData?: Partial<StickyPageProps | null>;
-  updateEditNoteData: React.Dispatch<
-    React.SetStateAction<Partial<StickyPageProps> | null>
-  >;
-}
-
-// Combine NoteActions & NoteCoordinates
-interface NoteFormProps extends NoteActions, NoteCoordinates {}
-
-export default function NoteForm({
-  coordinates,
-  hideForm,
-  updateNoteData,
-  editNoteData,
-  updateEditNoteData,
-}: NoteFormProps) {
-
-    // Local State For note Inputs Data
-  const [note, setNote] = useState<Partial<StickyPageProps>>({
-    noteName: editNoteData?.noteName || "",
-    content: editNoteData?.content || "",
-    createdBy: editNoteData?.createdBy || "Anonymous",
+  // Local State For note Inputs Data
+  const [note, setNote] = useState<Partial<StickyNote>>({
+    noteName: editNote?.noteName || "",
+    content: editNote?.content || "",
+    createdBy: editNote?.createdBy || "Anonymous",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateEditNoteData(null);
-    console.log("Edit Note Data Cleared", note, editNoteData);
+    console.log("Edit Note Data Cleared", note, editNote);
     console.log("Form submitted");
 
-    if (editNoteData?.id) {
-      hideForm();
-      return updateNoteData((prevNotes) => {
-        return prevNotes
-          ? prevNotes.map((n) =>
-              n.id === editNoteData.id
-                ? {
-                    ...n,
-                    noteName: note.noteName || n.noteName,
-                    content: note.content || n.content,
-                  }
-                : n
-            )
-          : [newNote];
+    if (editNote?.id) {
+      updateExistingNote({
+        id: editNote.id,
+        noteName: note.noteName,
+        content: note.content,
       });
+    } else {
+      // Create new note with all required fields
+      const newNote: StickyNote = {
+        id: crypto.randomUUID(),
+        noteName: note.noteName,
+        content: note.content || "",
+        createdBy: note.createdBy || "Anonymous",
+        x: coordinates.x,
+        y: coordinates.y,
+      };
+      addNote(newNote);
     }
-    // Create new note with all required fields
-    const newNote: StickyPageProps = {
-      id: Math.random().toString(36).substr(2, 9), // Use timestamp as unique ID
-      noteName: note.noteName,
-      content: note.content || "",
-      createdBy: note.createdBy || "Anonymous",
-      x: coordinates.x,
-      y: coordinates.y,
-    };
-
-    console.log("New Note Created:", newNote);
-
-    // Add new note to existing notes array
-    updateNoteData((prevNotes) => {
-      if (!prevNotes) return [newNote];
-      return [...prevNotes, newNote];
-    });
-
-    hideForm();
+    console.log("Note saved:", note);
+    setStore({ showForm: false, editNote: null });
   };
 
   // Fn to update on every Key Stroke
@@ -90,7 +72,7 @@ export default function NoteForm({
       {/* Backdrop overlay */}
       <div
         className="fixed inset-0 bg-black/20 z-9998"
-        onClick={hideForm}
+        onClick={() => setStore({ showForm: false })}
       ></div>
 
       {/* Form positioned at click location */}
@@ -117,7 +99,7 @@ export default function NoteForm({
         {/* Close button */}
         <button
           type="button"
-          onClick={hideForm}
+          onClick={() => setStore({ showForm: false })}
           className="absolute -top-[1vh] -right-[1vh] w-[3vh] h-[3vh] 
                      flex items-center justify-center
                      text-gray-700 hover:text-white 
