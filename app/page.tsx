@@ -1,40 +1,37 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { UserData } from "@/types";
+import { useStickyStore } from "@/store/useStickyStore";
+import { useShallow } from "zustand/shallow";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
-  const [userData, setUserData] = useState<UserData | null>(null);
   const [nameInput, setNameInput] = useState("");
   const router = useRouter();
+
+  const { userData, updateUserData } = useStickyStore(
+    useShallow((state) => ({
+      userData: state.userData,
+      updateUserData: state.updateUserData,
+    }))
+  );
 
   useEffect(() => {
     // Step 1: Set timer and change loading states
     const timer = setTimeout(() => {
-      // Step 2: Check localStorage
-      const rawData = localStorage.getItem("sync_userData");
-      if (rawData) {
-        const parsedData: UserData = JSON.parse(rawData);
-        setUserData(parsedData);
-      }
       setIsLoading(false);
-    }, 2000);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
 
   const handleNewUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newId = `${Math.random().toString(36).substr(2, 9)}`;
-    const newData: UserData = { sync_userId: newId, sync_userName: nameInput };
-
-    localStorage.setItem("sync_userData", JSON.stringify(newData));
-    setUserData(newData);
+    updateUserData(nameInput);
   };
 
   const navigateToRoom = () => {
     // Redirecting to a random room ID as planned
-    const roomId = crypto.randomUUID();
+    const roomId = userData?.roomId;
     router.push(`/room/${roomId}`);
   };
 
@@ -57,7 +54,7 @@ export default function Home() {
           <div className="text-center">
             <p className="mb-4">
               Welcome back,{" "}
-              <span className="font-bold">{userData.sync_userName}</span>
+              <span className="font-bold">{userData.userName}</span>
             </p>
             <button
               onClick={navigateToRoom}

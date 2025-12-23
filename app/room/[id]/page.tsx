@@ -3,22 +3,38 @@
 // Imports
 import NoteForm from "./note-form";
 import { useStickyStore } from "@/store/useStickyStore";
+import { useSocket } from "@/hooks/useSocket";
 
 // Interfaces
 import { useShallow } from "zustand/shallow";
 import StickyNoteComponent from "./sticky-note";
+import { useEffect } from "react";
+import { useParams } from "next/navigation";
 
 export default function CanvasPage() {
-  // ** States Management **
+  // useEffect(() => {
 
-  const { notes, showForm, selectNoteId, setStore } = useStickyStore(
+  // })
+
+  // ** States Management **
+  const { notes, showForm, selectNoteId, setStore, userData } = useStickyStore(
     useShallow((state) => ({
       notes: state.notes,
       showForm: state.showForm,
       selectNoteId: state.selectNoteId,
       setStore: state.setStore,
+      userData: state.userData,
     }))
   );
+
+  const params = useParams();
+
+ const userId = userData?.userId || "";
+  const userName = userData?.userName || "";
+  const roomId = params.id;
+
+  // 📞 CALL THE PHONE (Initialize Socket)
+  useSocket(roomId, userId, userName);
 
   // Double click handler for canvas actions
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -40,7 +56,7 @@ export default function CanvasPage() {
     setStore({ coordinates: { x, y }, showForm: true, selectNoteId: null });
   };
 
-  return (
+  return userData ? (
     <div
       onDoubleClick={handleDoubleClick}
       onClick={() => setStore({ selectNoteId: null })}
@@ -65,6 +81,18 @@ export default function CanvasPage() {
             showButtons={selectNoteId === note.id}
           />
         ))}
+    </div>
+  ) : (
+    <div className="flex h-screen items-center justify-center circuit-canvas text-gray-400">
+      Please set up your user Identity first.
+      <button
+        onClick={() => {
+          window.location.href = "/";
+        }}
+        className="ml-4 px-4 py-2 bg-black text-white rounded hover:opacity-90 transition"
+      >
+        Go to Home
+      </button>
     </div>
   );
 }

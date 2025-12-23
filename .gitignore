@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# env
+# src/.gitignore or root .gitignore
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# file to ignore
+/all-code.md

@@ -9,9 +9,9 @@
  ✔ -> Delete @done(25-12-21 14:15)
  ✔ -> Test both fn @done(25-12-21 14:15)
 
- => Learn how to implement socket.io in nextjs
- -> Implement basics of it 
- -> Test it
+ ✔ => Learn how to implement socket.io in nextjs @done(25-12-23 08:40)
+ ✔ -> Implement basics of it @done(25-12-23 08:40)
+ ☐ -> Test it @started(25-12-23 08:40)
 
  => Learn the drag and drop fn
  => Read mouse movements figure out 
