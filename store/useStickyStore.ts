@@ -15,6 +15,7 @@ export interface StickyStore {
   handleNoteEdit: (noteId: string) => void;
   setStore: (updates: Partial<StickyStore>) => void;
   addNote: (newNote: StickyNote) => void;
+  updateUserData: (userName: string) => void;
   updateExistingNote: (updateNote: Partial<StickyNote>) => void;
 }
 
@@ -22,7 +23,7 @@ export interface StickyStore {
 export const useStickyStore = create<StickyStore>()(
   persist(
     (set, get) => ({
-      notes: [...dummyNotes],
+      notes: [],
       userData: null,
       coordinates: null,
       showForm: false,
@@ -34,6 +35,19 @@ export const useStickyStore = create<StickyStore>()(
         set((state) => ({
           ...state,
           ...updates,
+        }));
+      },
+
+      //update user data
+      updateUserData: (userName) => {
+        const userId = crypto.randomUUID().split("-")[0];
+        const roomId = crypto.randomUUID().split("-")[1];
+        set(() => ({
+          userData: {
+            userId: userId,
+            userName: userName,
+            roomId: roomId,
+          },
         }));
       },
 

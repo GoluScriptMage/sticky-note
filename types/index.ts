@@ -2,8 +2,10 @@
 
 // For User Data in localStorage
 export interface UserData {
-  sync_userName: string;
-  sync_userId: string;
+  userName: string;
+  userId: string;
+  roomId: string;
+
 }
 
 // Sticky Note Properties
