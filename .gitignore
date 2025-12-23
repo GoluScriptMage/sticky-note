@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/server/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -50,3 +51,4 @@ next-env.d.ts
 
 # file to ignore
 /all-code.md
+git rm -r --cached server/node_modules
