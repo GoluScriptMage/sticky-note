@@ -1,5 +1,7 @@
 // Interfaces
 
+import type { NoteCoordinates } from "./types";
+
 export interface DataPayload {
   userId: string;
   roomId: string;
@@ -16,6 +18,9 @@ export interface ServerToClientEvents {
 
   // send the current room data
   room_data: (data: Partial<DataPayload>) => void;
+
+  // Tell others about mouse movements
+  mouse_update: (data: NoteCoordinates & { userId: string }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -27,6 +32,9 @@ export interface ClientToServerEvents {
 
   // get the current room Data
   get_room_data: (data: Partial<DataPayload>) => void;
+
+  // Send mouse updated postions
+  mouse_move: (data: NoteCoordinates) => void;
 }
 
 export interface SocketData {

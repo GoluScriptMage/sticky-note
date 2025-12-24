@@ -33,15 +33,35 @@ io.on("connection", (socket) => {
   socket.on("join_room", (data: DataPayload) => {
     // Saving the current user info so not have to ask again
     socket.data.userId = socket.id;
-    socket.data.roomId = data.roomId;
+    socket.data.roomId = "bf64";
     socket.data.userName = data.userName;
 
     // Join the room
-    socket.join(data.roomId);
-    console.log(`User ${data.userName} joined room ${data.roomId}`);
+    socket.join(socket.data.roomId);
+    console.log(`User ${data.userName} joined room ${socket.data.roomId}`);
 
-    // Tell others that a user joined room
-    socket.to(data.roomId).emit("user_joined", data);
+    // Tell others that a user joined room (with SOCKET.ID as userId)
+    const joinData = {
+      userId: socket.id,
+      roomId: socket.data.roomId,
+      userName: data.userName,
+    };
+    socket.to(socket.data.roomId).emit("user_joined", joinData);
+    console.log(
+      `📤 Emitting user_joined to room ${socket.data.roomId}:`,
+      joinData
+    );
+  });
+
+  // handle For mouse Mouse move event
+  socket.on("mouse_move", (data) => {
+    const { x, y } = data;
+    const { roomId } = socket.data;
+
+    // Tell others in the room about this user's mouse movement
+    const moveData = { userId: socket.id, x, y };
+    socket.to(roomId).emit("mouse_update", moveData);
+    console.log(`📤 Emitting mouse_update to room ${roomId}:`, moveData);
   });
 
   // Listen to leave room or disconnect
