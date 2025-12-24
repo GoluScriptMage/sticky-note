@@ -1,5 +1,11 @@
 import { dummyNotes } from "@/constants/dummyData";
-import type { NoteCoordinates, StickyNote, UserData } from "@/types";
+import type {
+  NoteCoordinates,
+  OtherUserCursor,
+  OtherUsers,
+  StickyNote,
+  UserData,
+} from "@/types/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -10,6 +16,7 @@ export interface StickyStore {
   showForm: boolean;
   selectNoteId: string | null;
   editNote: Partial<StickyNote> | null;
+  otherUsers: OtherUsers;
 
   handleNoteDelete: (noteId: string) => void;
   handleNoteEdit: (noteId: string) => void;
@@ -17,6 +24,8 @@ export interface StickyStore {
   addNote: (newNote: StickyNote) => void;
   updateUserData: (userName: string) => void;
   updateExistingNote: (updateNote: Partial<StickyNote>) => void;
+  updateOtherUsers: (userId: string, data: OtherUserCursor) => void;
+  deleteOtherUsers: (userId: string) => void;
 }
 
 // pass the persist middleware into create(...) and initialize all fields/handlers
@@ -29,6 +38,7 @@ export const useStickyStore = create<StickyStore>()(
       showForm: false,
       selectNoteId: null,
       editNote: null,
+      otherUsers: {},
 
       // For any Logic to update state
       setStore: (updates) => {
@@ -41,13 +51,36 @@ export const useStickyStore = create<StickyStore>()(
       //update user data
       updateUserData: (userName) => {
         const userId = crypto.randomUUID().split("-")[0];
-        const roomId = crypto.randomUUID().split("-")[1];
+        const roomId = 'bf64'
         set(() => ({
           userData: {
             userId: userId,
             userName: userName,
             roomId: roomId,
           },
+        }));
+      },
+
+      //update other users postions and data
+      updateOtherUsers: (userId, data) => {
+        // Find the current users and create a new otherUsers object with the updated entry
+        set((state) => {
+          const newOtherUsers = {
+            ...state.otherUsers,
+            [userId]: { ...(state.otherUsers[userId] || {}), ...data },
+          };
+          return { otherUsers: newOtherUsers };
+        });
+      },
+
+      deleteOtherUsers: (userId): Partial<StickyStore> => {
+        // Find current user delte it
+        const newData: OtherUsers = { ...get().otherUsers };
+
+        delete newData[userId];
+
+        set(() => ({
+          otherUsers: { ...newData },
         }));
       },
 

@@ -5,6 +5,8 @@ import {
   ClientToServerEvents,
   DataPayload,
 } from "@/types/socketTypes";
+import { useStickyStore } from "@/store/useStickyStore";
+import { useShallow } from "zustand/shallow";
 
 export const useSocket = (
   userId: string,
@@ -15,6 +17,13 @@ export const useSocket = (
     ServerToClientEvents,
     ClientToServerEvents
   > | null>(null);
+
+  const { deleteOtherUsers, updateOtherUsers } = useStickyStore(
+    useShallow((state) => ({
+      deleteOtherUsers: state.deleteOtherUsers,
+      updateOtherUsers: state.updateOtherUsers,
+    }))
+  );
 
   useEffect(() => {
     // Step 1: Create Socket connection
@@ -43,11 +52,26 @@ export const useSocket = (
 
     // User Joined
     socket?.on("user_joined", (data: DataPayload) => {
-      console.log(`User Joined Room: ${data.userName}`);
+      console.log("🟢 User Joined Event Received:", data);
+      console.log("User Joined Data:", data);
+      updateOtherUsers(data.userId, {
+        userName: data.userName,
+        color: "#ff4757",
+        x: 0,
+        y: 0,
+      });
+      console.log(`✅ Added user to otherUsers: ${data.userName}`);
+    });
+
+    // For Mouse updates
+    socket?.on("mouse_update", (data) => {
+      console.log(`🖱️ Mouse Update Received:`, data);
+      updateOtherUsers(data.userId, { x: data.x, y: data.y });
     });
 
     // User Left
     socket?.on("user_left", (data: DataPayload) => {
+      deleteOtherUsers(data.userId);
       console.log(`User Left Room: ${data.userName}`);
     });
 
@@ -55,6 +79,7 @@ export const useSocket = (
     return () => {
       socket?.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, roomId, userName]);
 
   return socketRef;
