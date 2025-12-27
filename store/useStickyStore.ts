@@ -6,6 +6,7 @@ import type {
   StickyNote,
   UserData,
 } from "@/types/types";
+import { notStrictEqual } from "assert";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -17,15 +18,19 @@ export interface StickyStore {
   selectNoteId: string | null;
   editNote: Partial<StickyNote> | null;
   otherUsers: OtherUsers;
+  offSet: NoteCoordinates | null;
+  isDummyNotesAdded: boolean;
 
   handleNoteDelete: (noteId: string) => void;
   handleNoteEdit: (noteId: string) => void;
   setStore: (updates: Partial<StickyStore>) => void;
   addNote: (newNote: StickyNote) => void;
+  addDummyNotes: () => void;
   updateUserData: (userName: string) => void;
   updateExistingNote: (updateNote: Partial<StickyNote>) => void;
   updateOtherUsers: (userId: string, data: OtherUserCursor) => void;
   deleteOtherUsers: (userId: string) => void;
+  updateNote: (id: string, data: Partial<StickyNote>) => void;
 }
 
 // pass the persist middleware into create(...) and initialize all fields/handlers
@@ -39,6 +44,8 @@ export const useStickyStore = create<StickyStore>()(
       selectNoteId: null,
       editNote: null,
       otherUsers: {},
+      offSet: null,
+      isDummyNotesAdded: false,
 
       // For any Logic to update state
       setStore: (updates) => {
@@ -48,10 +55,26 @@ export const useStickyStore = create<StickyStore>()(
         }));
       },
 
+      updateNote: (id, data) => {
+        set((state) => ({
+          notes: state.notes.map((note) =>
+            note.id === id ? { ...note, ...data } : note
+          ),
+        }));
+      },
+
+      // add dummy notes - only adds if notes array is empty
+      addDummyNotes: () => {
+        const currentNotes = get().notes;
+        if (currentNotes.length === 0) {
+          set({ notes: dummyNotes, isDummyNotesAdded: true });
+        }
+      },
+
       //update user data
       updateUserData: (userName) => {
         const userId = crypto.randomUUID().split("-")[0];
-        const roomId = 'bf64'
+        const roomId = "bf64";
         set(() => ({
           userData: {
             userId: userId,

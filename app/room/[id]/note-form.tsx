@@ -11,7 +11,6 @@ export default function NoteForm() {
     editNote,
     updateExistingNote,
     addNote,
-    handleNoteEdit,
   }: StickyStore = useStickyStore(
     useShallow((state) => ({
       coordinates: state.coordinates,
@@ -44,7 +43,7 @@ export default function NoteForm() {
     } else {
       // Create new note with all required fields
       const newNote: StickyNote = {
-        id: crypto.randomUUID(),
+        id: crypto.randomUUID().split("-")[0],
         noteName: note.noteName,
         content: note.content || "",
         createdBy: note.createdBy || "Anonymous",

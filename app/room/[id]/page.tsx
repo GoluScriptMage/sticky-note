@@ -8,23 +8,41 @@ import { useSocket } from "@/hooks/useSocket";
 // Interfaces
 import { useShallow } from "zustand/shallow";
 import StickyNoteComponent from "./sticky-note";
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Cursor from "./cursor";
+import { stat } from "fs";
+import { dummyNotes } from "@/constants/dummyData";
 
 export default function CanvasPage() {
   // ** States Management **
-  const { notes, showForm, selectNoteId, setStore, userData, otherUsers } =
-    useStickyStore(
-      useShallow((state) => ({
-        notes: state.notes,
-        showForm: state.showForm,
-        selectNoteId: state.selectNoteId,
-        setStore: state.setStore,
-        userData: state.userData,
-        otherUsers: state.otherUsers,
-      }))
-    );
+
+  const isDraggingRef = useRef<boolean>(false);
+  const draggingNoteIdRef = useRef<string | null>(null);
+
+  const {
+    notes,
+    showForm,
+    selectNoteId,
+    setStore,
+    userData,
+    otherUsers,
+    updateNote,
+    offSet,
+    addDummyNotes,
+  } = useStickyStore(
+    useShallow((state) => ({
+      notes: state.notes,
+      showForm: state.showForm,
+      selectNoteId: state.selectNoteId,
+      setStore: state.setStore,
+      userData: state.userData,
+      otherUsers: state.otherUsers,
+      updateNote: state.updateNote,
+      offSet: state.offSet,
+      addDummyNotes: state.addDummyNotes,
+    }))
+  );
 
   const params: { id: string } = useParams();
 
@@ -36,12 +54,51 @@ export default function CanvasPage() {
   const delayRef = useRef(0);
   const count = useRef(0);
 
+  // Adding dummy data - only runs once on mount
+  useEffect(() => {
+    addDummyNotes(); // The function itself checks if notes exist
+  }, [addDummyNotes]);
+
+  // UseEffect to handle mouseMove events
+  useEffect(() => {
+    console.log("isDraggingRef changed:", isDraggingRef.current);
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current && !draggingNoteIdRef.current) return;
+
+      // Calculate canvas height and width
+      const canvasHeight = window.innerHeight;
+      const canvasWidth = window.innerWidth;
+
+      // calc new x, y
+      const newX = ((e.clientX - offSet?.x) / canvasWidth) * 100;
+      const newY = ((e.clientY - offSet?.y) / canvasHeight) * 100;
+      console.log("OffsetX and OffsetY:", offSet);
+      console.log("New X and Y:", newX, newY);
+      updateNote(draggingNoteIdRef.current, { x: newX, y: newY });
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      isDraggingRef.current = false;
+      draggingNoteIdRef.current = null;
+      setStore({
+        offSet: null,
+      });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [offSet, updateNote, setStore]);
+
   //  CALL THE PHONE (Initialize Socket)
   const socket = useSocket(roomId, userId, userName);
 
   // Double click handler for canvas actions
-  const handleDoubleClick
-      = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const target = (e.target as HTMLElement).closest(".ignore");
 
@@ -81,7 +138,9 @@ export default function CanvasPage() {
   return userData ? (
     <div
       onDoubleClick={handleDoubleClick}
-      onClick={() => setStore({ selectNoteId: null })}
+      onClick={() => {
+        if (!isDraggingRef) setStore({ selectNoteId: null });
+      }}
       onMouseMove={(e) => handleMouseMove(e)}
       className="relative w-full h-screen p-[3vh]"
     >
@@ -97,11 +156,14 @@ export default function CanvasPage() {
 
       {showForm && <NoteForm />}
       {notes &&
+        // eslint-disable-next-line react-hooks/refs
         notes.map((note) => (
           <StickyNoteComponent
             key={note.id}
+            isDraggingRef={isDraggingRef}
+            draggingNoteIdRef={draggingNoteIdRef}
             {...note}
-            showButtons={selectNoteId === note.id}
+            showButtons={selectNoteId === note.id && !isDraggingRef.current}
           />
         ))}
       {/* Render other users' cursors */}

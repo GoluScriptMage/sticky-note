@@ -1,12 +1,15 @@
 import { useStickyStore, type StickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
 import type { StickyNote } from "@/types/types";
+import { stat } from "fs";
 
 // Interfacesz-
 
 interface Actions extends StickyNote {
   showButtons?: boolean;
   key?: string;
+  isDraggingRef: React.MutableRefObject<boolean>;
+  draggingNoteIdRef: React.MutableRefObject<string | null>;
 }
 
 export default function StickyNoteComponent({
@@ -17,15 +20,17 @@ export default function StickyNoteComponent({
   content,
   x,
   y,
+  isDraggingRef,
+  draggingNoteIdRef,
 }: Actions) {
   // Getting things out from store
-  const { handleNoteEdit, handleNoteDelete }: Partial<StickyStore> =
+  const { handleNoteEdit, handleNoteDelete, setStore }: StickyStore =
     useStickyStore(
       useShallow((state) => ({
         notes: state.notes,
+        setStore: state.setStore,
         handleNoteEdit: state.handleNoteEdit,
         handleNoteDelete: state.handleNoteDelete,
-        setStore: state.setStore,
       }))
     );
 
@@ -58,22 +63,49 @@ export default function StickyNoteComponent({
   const color =
     colors[getStyleIndex(noteName + (createdBy || ""), colors.length)];
 
+  const isThisNoteDragging =
+    // eslint-disable-next-line react-hooks/refs
+    isDraggingRef.current && draggingNoteIdRef.current === id;
+
   return (
     <div
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (showButtons) return;
+        console.log(`Mouse down on note ${id}`);
+        isDraggingRef.current = true;
+        draggingNoteIdRef.current = id;
+        // Calculate offSet
+        const rect = e.currentTarget.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+        console.log(`OffsetX: ${offsetX}, OffsetY: ${offsetY}`);
+        setStore({
+          offSet: {
+            x: offsetX,
+            y: offsetY,
+          },
+        });
+      }}
       data-note-id={id}
       style={{
         left: `${x}%`,
         top: `${y}%`,
       }}
       className={`${color} ${rotation} ignore
-                     absolute w-[18vw] min-w-62.5 h-[30vh] min-h-50
+                     absolute w-[18vw] min-w-[250px] h-[30vh] min-h-[200px]
                      rounded-sm border-t-8 border-l border-r border-b
                      shadow-lg hover:shadow-2xl
-                     transition-all duration-300 ease-in-out
                      hover:scale-105 hover:rotate-0 hover:z-10
-                     cursor-pointer group p-[3vh]
+                     group p-[3vh]
                      flex flex-col justify-between
-                     overflow-hidden`}
+                     overflow-hidden
+                     ${
+                       isThisNoteDragging
+                         ? "transition-none z-50 shadow-2xl scale-110 cursor-grabbing"
+                         : "transition-all duration-300 ease-in-out cursor-grab"
+                     }`}
     >
       {/* Top decoration - tape effect */}
       <div
@@ -118,7 +150,7 @@ export default function StickyNoteComponent({
           {/* Delete Button */}
           <button
             onClick={(e) => {
-              // e.stopPropagation();
+              e.stopPropagation();
               console.log("Delete note:", id);
               // Delete functionality will be added later
               handleNoteDelete(id);

@@ -23,7 +23,7 @@ const io = new Server<
   SocketData
 >(httpServer, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://192.168.29.22:3000"],
     methods: ["GET", "POST"],
   },
 });
