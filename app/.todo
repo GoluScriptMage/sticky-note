@@ -11,11 +11,14 @@
 
  ✔ => Learn how to implement socket.io in nextjs @done(25-12-23 08:40)
  ✔ -> Implement basics of it @done(25-12-23 08:40)
- ☐ -> Test it @started(25-12-23 08:40)
+ ✔ -> Test it @started(25-12-23 08:40) @done(25-12-30 07:50) @lasted(6d23h10m57s)
 
- => Learn the drag and drop fn
- => Read mouse movements figure out 
- -> How to send mouse movements to other clients 
- -> How to recieve it 
- -> Test it 
+ ✔ => Learn the drag and drop fn @done(25-12-27 21:58)
+ ✔ => Read mouse movements figure out @done(25-12-27 21:58)
+ ✔ -> How to send mouse movements to other clients @done(25-12-30 07:50)
+ ✔ -> How to recieve it @done(25-12-30 07:50)
+ ✔ -> Test it @done(25-12-30 07:50)
 
+ ✔ Add Notification Panel @done(25-12-30 07:50)
+ ☐ Delete Data BTN @started(25-12-30 07:50)
+ 

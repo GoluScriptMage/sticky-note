@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
+import { toast } from "sonner";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -27,12 +28,20 @@ export default function Home() {
   const handleNewUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateUserData(nameInput);
+    toast.success("Login Successfully", {
+      description: "Ready to Join Room",
+      duration: 1000,
+    });
   };
 
   const navigateToRoom = () => {
     // Redirecting to a random room ID as planned
     const roomId = userData?.roomId;
     router.push(`/room/${roomId}`);
+    toast.success("Room created", {
+      description: "You have joined a room",
+      duration: 1200,
+    });
   };
 
   // STAGE 1: Nothing happens for 2 seconds

@@ -52,3 +52,7 @@ next-env.d.ts
 # file to ignore
 /all-code.md
 git rm -r --cached server/node_modules
+/lib/generated/prisma
+
+# clerk configuration (can include secrets)
+/.clerk/

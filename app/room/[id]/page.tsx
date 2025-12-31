@@ -11,8 +11,6 @@ import StickyNoteComponent from "./sticky-note";
 import React, { useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Cursor from "./cursor";
-import { stat } from "fs";
-import { dummyNotes } from "@/constants/dummyData";
 
 export default function CanvasPage() {
   // ** States Management **
@@ -94,6 +92,8 @@ export default function CanvasPage() {
     };
   }, [offSet, updateNote, setStore]);
 
+  
+
   //  CALL THE PHONE (Initialize Socket)
   const socket = useSocket(roomId, userId, userName);
 
@@ -139,6 +139,7 @@ export default function CanvasPage() {
     <div
       onDoubleClick={handleDoubleClick}
       onClick={() => {
+        // Option 1: Simple & Sweet
         if (!isDraggingRef) setStore({ selectNoteId: null });
       }}
       onMouseMove={(e) => handleMouseMove(e)}

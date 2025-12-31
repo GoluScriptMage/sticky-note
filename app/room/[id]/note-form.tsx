@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { StickyNote } from "./page";
 import { useStickyStore, type StickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
+import { v4 as uuidv4 } from "uuid";
 
-export default function NoteForm() {
+export default function  NoteForm() {
   // Getting things out from store
   const {
     setStore,
@@ -43,7 +44,7 @@ export default function NoteForm() {
     } else {
       // Create new note with all required fields
       const newNote: StickyNote = {
-        id: crypto.randomUUID().split("-")[0],
+        id: uuidv4().split("-")[0],
         noteName: note.noteName,
         content: note.content || "",
         createdBy: note.createdBy || "Anonymous",

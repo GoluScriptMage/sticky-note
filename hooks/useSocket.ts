@@ -7,6 +7,7 @@ import {
 } from "@/types/socketTypes";
 import { useStickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
+import { toast } from "sonner";
 
 export const useSocket = (
   userId: string,
@@ -24,6 +25,8 @@ export const useSocket = (
       updateOtherUsers: state.updateOtherUsers,
     }))
   );
+
+  const isUserNameSavedRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Step 1: Create Socket connection
@@ -52,25 +55,31 @@ export const useSocket = (
 
     // User Joined
     socket?.on("user_joined", (data: DataPayload) => {
-      console.log("🟢 User Joined Event Received:", data);
-      console.log("User Joined Data:", data);
       updateOtherUsers(data.userId, {
         userName: data.userName,
         color: "#ff4757",
         x: 0,
         y: 0,
       });
+      isUserNameSavedRef.current = true;
+      toast.success("User Joined", {
+        description: `${data.userName} has joined the room`,
+      });
       console.log(`✅ Added user to otherUsers: ${data.userName}`);
     });
 
     // For Mouse updates
     socket?.on("mouse_update", (data) => {
+      if (!isUserNameSavedRef.current) return;
       console.log(`🖱️ Mouse Update Received:`, data);
       updateOtherUsers(data.userId, { x: data.x, y: data.y });
     });
 
     // User Left
     socket?.on("user_left", (data: DataPayload) => {
+      toast.error("User Left", {
+        description: `${data.userName} has left the room`,
+      });
       deleteOtherUsers(data.userId);
       console.log(`User Left Room: ${data.userName}`);
     });

@@ -6,9 +6,9 @@ import type {
   StickyNote,
   UserData,
 } from "@/types/types";
-import { notStrictEqual } from "assert";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { v4 as uuidv4 } from "uuid";
 
 export interface StickyStore {
   notes: StickyNote[];
@@ -73,7 +73,7 @@ export const useStickyStore = create<StickyStore>()(
 
       //update user data
       updateUserData: (userName) => {
-        const userId = crypto.randomUUID().split("-")[0];
+        const userId = uuidv4().split("-")[0];
         const roomId = "bf64";
         set(() => ({
           userData: {
@@ -87,6 +87,7 @@ export const useStickyStore = create<StickyStore>()(
       //update other users postions and data
       updateOtherUsers: (userId, data) => {
         // Find the current users and create a new otherUsers object with the updated entry
+        console.log("UserName from the Socket ", data.userName);
         set((state) => {
           const newOtherUsers = {
             ...state.otherUsers,
