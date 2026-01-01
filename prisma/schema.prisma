@@ -6,14 +6,14 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  name      String
-  email     String   @unique
-  imageUrl  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model User {      
+  id              String   @id @default(cuid())
+  clerkId         String   @unique
+  name            String
+  email           String   @unique
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   notes Note[]
@@ -30,14 +30,15 @@ model Room {
 }
 
 model Note {
-  id        String   @id @default(cuid())
-  title     String
-  content   String
-  x         Float    @default(0)
-  y         Float    @default(0)
-  color     String   @default("#ff0000")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  noteName        String
+  createdBy       String
+  content         String
+  x               Float    @default(0)
+  y               Float    @default(0)
+  color           String   @default("#ff0000")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   // also add colour and author name
 
   // Relations

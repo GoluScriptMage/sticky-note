@@ -18,6 +18,7 @@ export default function CanvasPage() {
   const isDraggingRef = useRef<boolean>(false);
   const draggingNoteIdRef = useRef<string | null>(null);
 
+
   const {
     notes,
     showForm,
@@ -91,8 +92,6 @@ export default function CanvasPage() {
       window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [offSet, updateNote, setStore]);
-
-  
 
   //  CALL THE PHONE (Initialize Socket)
   const socket = useSocket(roomId, userId, userName);

@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:push": "dotenv -- npx prisma db push",
     "db:generate": "npx prisma generate",
-    "db:studio": "npx prisma studio"
+    "db:studio": "dotenv -e .env -- npx prisma studio"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.5",
