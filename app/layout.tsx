@@ -4,13 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import {
   ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
 } from "@clerk/nextjs";
-import { CLIENT_PUBLIC_FILES_PATH } from "next/dist/shared/lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
