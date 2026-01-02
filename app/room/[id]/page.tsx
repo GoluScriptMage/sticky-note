@@ -11,13 +11,13 @@ import StickyNoteComponent from "./sticky-note";
 import React, { useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Cursor from "./cursor";
+import { useAuth } from "@clerk/nextjs";
 
 export default function CanvasPage() {
   // ** States Management **
 
   const isDraggingRef = useRef<boolean>(false);
   const draggingNoteIdRef = useRef<string | null>(null);
-
 
   const {
     notes,
@@ -45,7 +45,7 @@ export default function CanvasPage() {
 
   const params: { id: string } = useParams();
 
-  const userId = userData?.userId || "";
+  const { userId } = useAuth();
   const userName = userData?.userName || "";
   const roomId = params.id;
 
@@ -60,7 +60,6 @@ export default function CanvasPage() {
 
   // UseEffect to handle mouseMove events
   useEffect(() => {
-    console.log("isDraggingRef changed:", isDraggingRef.current);
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current && !draggingNoteIdRef.current) return;
 
@@ -71,12 +70,10 @@ export default function CanvasPage() {
       // calc new x, y
       const newX = ((e.clientX - offSet?.x) / canvasWidth) * 100;
       const newY = ((e.clientY - offSet?.y) / canvasHeight) * 100;
-      console.log("OffsetX and OffsetY:", offSet);
-      console.log("New X and Y:", newX, newY);
       updateNote(draggingNoteIdRef.current, { x: newX, y: newY });
     };
 
-    const handleMouseUp = (e: MouseEvent) => {
+    const handleMouseUp = () => {
       isDraggingRef.current = false;
       draggingNoteIdRef.current = null;
       setStore({
@@ -142,7 +139,7 @@ export default function CanvasPage() {
         if (!isDraggingRef) setStore({ selectNoteId: null });
       }}
       onMouseMove={(e) => handleMouseMove(e)}
-      className="relative w-full h-screen p-[3vh]"
+      className="relative min-h-screen w-full p-6 sm:p-8 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[20px_20px]"
     >
       {/* Header */}
       <div className="text-center mb-[5vh]">

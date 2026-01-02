@@ -32,7 +32,7 @@ export const useSocket = (
     // Step 1: Create Socket connection
     // This will only runs once when component mounts
     socketRef.current = io(
-      process.env.NEXT_PUBLIC_SOCKET_URL || "http://192.168.29.22:3001"
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://192.168.1.64:3001"
     );
 
     // Data to send to server
@@ -46,6 +46,8 @@ export const useSocket = (
     socketRef.current?.on("connect", () => {
       console.log("Connected to socket server");
     });
+
+    
 
     // Step 2: Telling server to join Room
     socketRef.current?.emit("join_room", data);

@@ -1,7 +1,6 @@
 import { useStickyStore, type StickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
 import type { StickyNote } from "@/types/types";
-import { stat } from "fs";
 
 // Interfacesz-
 
@@ -94,16 +93,17 @@ export default function StickyNoteComponent({
         top: `${y}%`,
       }}
       className={`${color} ${rotation} ignore
-                     absolute w-[18vw] min-w-[250px] h-[30vh] min-h-[200px]
-                     rounded-sm border-t-8 border-l border-r border-b
+                     absolute w-[min(26vw,340px)] min-w-56
+                     min-h-48 max-h-80
+                     rounded-md border-t-8 border-l border-r border-b
                      shadow-lg hover:shadow-2xl
-                     hover:scale-105 hover:rotate-0 hover:z-10
-                     group p-[3vh]
-                     flex flex-col justify-between
+                     hover:scale-[1.03] hover:rotate-0 hover:z-10
+                     group p-4 sm:p-5
+                     flex flex-col gap-3
                      overflow-hidden
                      ${
                        isThisNoteDragging
-                         ? "transition-none z-50 shadow-2xl scale-110 cursor-grabbing"
+                         ? "transition-none z-50 shadow-2xl scale-105 cursor-grabbing"
                          : "transition-all duration-300 ease-in-out cursor-grab"
                      }`}
     >
@@ -184,26 +184,20 @@ export default function StickyNoteComponent({
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
-        <h3
-          className="text-[2vh] md:text-[2.2vh] font-bold text-gray-800 mb-[1.5vh] 
-                       tracking-tight line-clamp-2 group-hover:text-gray-900"
-        >
+      <div className="flex-1 overflow-auto space-y-2">
+        <h3 className="text-lg font-semibold text-gray-800 tracking-tight line-clamp-2 group-hover:text-gray-900">
           {noteName}
         </h3>
 
-        <p
-          className="text-[1.6vh] md:text-[1.8vh] text-gray-700 leading-relaxed 
-                      whitespace-pre-wrap wrap-break-word"
-        >
+        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap wrap-break-word">
           {content}
         </p>
       </div>
 
       {/* Footer with creator */}
       {createdBy && (
-        <div className="mt-[2vh] pt-[1vh] border-t border-gray-300/40">
-          <small className="text-[1.4vh] text-gray-600 italic font-light flex items-center gap-1">
+        <div className="mt-2 pt-2 border-t border-gray-300/40">
+          <small className="text-xs text-gray-600 italic font-light flex items-center gap-1">
             <span className="opacity-60">✍️</span>
             <span>{createdBy}</span>
           </small>

@@ -1,3 +1,5 @@
+"use server";
+
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { title } from "process";
@@ -46,7 +48,6 @@ export async function getUserNotes() {
 
 // create a new note
 export async function createNote(data: Partial<StickyNote>, roomId: string) {
-  const { author, content, title } = data;
   if (!author || !content || !title) {
     throw new Error("Missing required Fields");
   }
@@ -65,10 +66,34 @@ export async function createNote(data: Partial<StickyNote>, roomId: string) {
 
   const newNote = await db.note.create({
     data: {
-      content,
+      ...data,
       roomId,
       userId: user.id,
     },
   });
   return newNote;
+}
+
+// create new room
+export async function createRoom(roomName?: string) {
+  const { userId: clerkUserId } = await auth();
+
+  checker(clerkUserId, "User not authenticated");
+
+  const user = await db.user.findUnique({ where: { clerkId: clerkUserId } });
+  checker(user?.id, "User not found in database");
+
+  const name = roomName?.trim() || "New Room";
+
+  const newRoom = await db.room.create({
+    data: {
+      name,
+      users: {
+        connect: {
+          id: user!.id,
+        },
+      },
+    },
+  });
+  return newRoom;
 }

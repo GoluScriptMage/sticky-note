@@ -8,7 +8,6 @@ import type {
 } from "@/types/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { v4 as uuidv4 } from "uuid";
 
 export interface StickyStore {
   notes: StickyNote[];
@@ -26,7 +25,7 @@ export interface StickyStore {
   setStore: (updates: Partial<StickyStore>) => void;
   addNote: (newNote: StickyNote) => void;
   addDummyNotes: () => void;
-  updateUserData: (userName: string) => void;
+  updateUserData: (userName: string, roomId) => void;
   updateExistingNote: (updateNote: Partial<StickyNote>) => void;
   updateOtherUsers: (userId: string, data: OtherUserCursor) => void;
   deleteOtherUsers: (userId: string) => void;
@@ -72,12 +71,9 @@ export const useStickyStore = create<StickyStore>()(
       },
 
       //update user data
-      updateUserData: (userName) => {
-        const userId = uuidv4().split("-")[0];
-        const roomId = "bf64";
+      updateUserData: (userName, roomId) => {
         set(() => ({
           userData: {
-            userId: userId,
             userName: userName,
             roomId: roomId,
           },

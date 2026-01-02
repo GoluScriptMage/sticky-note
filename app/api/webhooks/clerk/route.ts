@@ -1,18 +1,21 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
-import { clerkClient, WebhookEvent } from "@clerk/nextjs/server";
+import { WebhookEvent } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { STATUS_CODES } from "http";
-import { url } from "inspector";
 
 export async function POST(req: Request) {
+  console.log("🔔 Webhook received!");
+
   // 1. Get the webhook secret from env
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   //Check the webhook secret
   if (!WEBHOOK_SECRET) {
+    console.error("❌ CLERK_WEBHOOK_SECRET is not defined");
     throw new Error("CLERK_WEBHOOK_SECRET is not defined");
   }
+
+  console.log("✅ Webhook secret found");
 
   // Get the svix headers
   const headersPayload = await headers();
@@ -22,8 +25,11 @@ export async function POST(req: Request) {
 
   // Throw a error if any header is Missing
   if (!svixId || !svixSignature || !svixTimestamp) {
-    throw new Error("Missing svix headers ", { status: 400 });
+    console.error("❌ Missing svix headers");
+    return new Response("Missing svix headers", { status: 400 });
   }
+
+  console.log("✅ Svix headers found");
 
   // Get the body
   const payload = await req.json();
@@ -43,61 +49,76 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Webhook verification failed:", err);
     return new Response("Webhook Verification Failed", {
-      status: STATUS_CODES[400],
+      status: 400,
     });
   }
 
   // 5 Handle the event
   const eventType = evt.type;
+  console.log(`📨 Event type: ${eventType}`);
 
   switch (eventType) {
-    case "user.created": {
-      const { id, email_addresses, first_name, last_name, image_url } =
-        evt.data;
+    case "user.created":
+      {
+        console.log("👤 Creating user in database...");
+        const { id, email_addresses, first_name, last_name, image_url } =
+          evt.data;
 
-      // Create new user in db
-      await db.user.create({
-        data: {
-          clerkId: id,
-          email: email_addresses[0]?.email_address ?? "",
-          name: `${first_name ?? ""} ${last_name ?? ""}`.trim() || null,
-          imageUrl: image_url ?? null,
-        },
-      });
+        // Create new user in db
+        try {
+          await db.user.create({
+            data: {
+              clerkId: id,
+              email: email_addresses[0]?.email_address ?? "",
+              name: `${first_name ?? ""} ${last_name ?? ""}`.trim() || null,
+              imageUrl: image_url ?? null,
+            },
+          });
 
-      console.log("User created in DB with clerkId: ", id);
-    }
-    case "user.updated": {
-      const { id, email_addresses, first_name, last_name, image_url } =
-        evt.data;
-      // Update user in db
-      await db.user.update({
-        where: {
-          clerkId: id,
-        },
-        data: {
-          email_addresses: email_addresses[0]?.email_address ?? "",
-          name: `${first_name ?? ""} ${last_name ?? ""}`.trim() || null,
-          image_url: image_url ?? null,
-        },
-      });
-      console.log("User updated in DB with clerkId: ", id);
-    }
+          console.log("✅ User created in DB with clerkId: ", id);
+        } catch (error) {
+          console.error("❌ Error creating user in DB:", error);
+          throw error;
+        }
+      }
+      break;
+    case "user.updated":
+      {
+        const { id, email_addresses, first_name, last_name, image_url } =
+          evt.data;
+        // Update user in db
+        await db.user.update({
+          where: {
+            clerkId: id,
+          },
+          data: {
+            email: email_addresses[0]?.email_address ?? "",
+            name: `${first_name ?? ""} ${last_name ?? ""}`.trim() || null,
+            imageUrl: image_url ?? null,
+          },
+        });
+        console.log("User updated in DB with clerkId: ", id);
+      }
+      break;
 
-    case "user.deleted": {
-      const { id } = evt.data;
+    case "user.deleted":
+      {
+        const { id } = evt.data;
 
-      // Delte the use from db
-      await db.user.delete({
-        where: {
-          clerkId: id,
-        },
-      });
+        // Delte the use from db
+        await db.user.delete({
+          where: {
+            clerkId: id,
+          },
+        });
 
-      console.log("User deleted from Db with Clerk ID:", id);
-    }
+        console.log("User deleted from Db with Clerk ID:", id);
+      }
+      break;
 
     default:
       console.log(`Unhandled event type: ${eventType}`);
   }
+
+  return new Response("Ok", { status: 200 });
 }
