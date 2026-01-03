@@ -5,20 +5,13 @@ import { useStickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
 import { toast } from "sonner";
 import { createRoom } from "@/lib/actions/user-action";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import UserNameDisplay from "./user-name-display";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { userId } = useAuth();
-  const [userName, setUserName] = useState("");
-
-  const { userData } = useStickyStore(
-    useShallow((state) => ({
-      userData: state.userData,
-    }))
-  );
 
   useEffect(() => {
     // Step 1: Set timer and change loading states
@@ -27,21 +20,6 @@ export default function Home() {
     }, 800);
     return () => clearTimeout(timer);
   }, []);
-
-  const navigateToRoom = async () => {
-    if (!userId) {
-      toast.info("Please sign in to continue");
-      router.push("/sign-in");
-      return;
-    }
-
-    const newRoom = await createRoom(roomInput || "New Room");
-    router.push(`/room/${newRoom.id}`);
-    toast.success("Room created", {
-      description: "You have joined a room",
-      duration: 1200,
-    });
-  };
 
   // Create a fn for getting user name
   // After that also make field
@@ -105,48 +83,6 @@ export default function Home() {
 
             <div className="space-y-6 px-6 py-6">
               {userId ? (
-                // <div className="space-y-4">
-                //   <div className="rounded-lg border border-foreground/10 bg-foreground text-background px-4 py-3 text-sm">
-                //     <p className="text-foreground/80">Signed in as</p>
-                //     <p className="text-lg font-semibold text-white">
-                //       {userData?.userName ?? "Unnamed"}
-                //     </p>
-                //   </div>
-
-                //   <div className="space-y-3">
-                //     <button
-                //       onClick={navigateToRoom}
-                //       className="w-full rounded-lg bg-black px-4 py-3 text-white transition hover:opacity-90"
-                //     >
-                //       Create & enter a room
-                //     </button>
-
-                //     <div className="flex flex-col gap-3 sm:flex-row">
-                //       <input
-                //         type="text"
-                //         placeholder="Enter room ID"
-                //         value={roomInput}
-                //         onChange={(e) => setRoomInput(e.target.value)}
-                //         className="w-full rounded-lg border border-foreground/10 bg-white px-3 py-3 text-sm outline-none ring-2 ring-transparent transition focus:ring-foreground/20"
-                //       />
-                //       <button
-                //         type="button"
-                //         onClick={() => {
-                //           if (!userId) {
-                //             router.push("/sign-in");
-                //             return;
-                //           }
-                //           if (roomInput) {
-                //             router.push(`/room/${roomInput}`);
-                //           }
-                //         }}
-                //         className="shrink-0 rounded-lg bg-white px-4 py-3 text-sm font-medium text-black ring-1 ring-foreground/15 transition hover:bg-black hover:text-white"
-                //       >
-                //         Join
-                //       </button>
-                //     </div>
-                //   </div>
-                // </div>
                 <UserNameDisplay />
               ) : (
                 <div className="space-y-4">
