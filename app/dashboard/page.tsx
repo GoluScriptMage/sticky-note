@@ -3,21 +3,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
-import { toast } from "sonner";
-import { createRoom } from "@/lib/actions/user-action";
 import { useAuth } from "@clerk/nextjs";
+import CreateRoomDisplay from "./create-room";
+import RoomsListDisplay from "./rooms-list";
 
 export default function Home() {
   const { userId } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [roomInput, setRoomInput] = useState("");
   const router = useRouter();
-
-  const recentRooms = [
-    { id: "team-sync", label: "Team Sync", lastActive: "2h ago" },
-    { id: "design-sprint", label: "Design Sprint", lastActive: "yesterday" },
-    { id: "retro-notes", label: "Retro Notes", lastActive: "3d ago" },
-  ];
 
   const { userData } = useStickyStore(
     useShallow((state) => ({
@@ -32,21 +26,6 @@ export default function Home() {
     }, 800);
     return () => clearTimeout(timer);
   }, []);
-
-  const navigateToRoom = async () => {
-    if (!userId) {
-      toast.info("Please sign in to continue");
-      router.push("/sign-in");
-      return;
-    }
-
-    const newRoom = await createRoom(roomInput || "New Room");
-    router.push(`/room/${newRoom.id}`);
-    toast.success("Room created", {
-      description: "You have joined a room",
-      duration: 1200,
-    });
-  };
 
   // STAGE 1: Nothing happens for 2 seconds
   if (isLoading) {
@@ -74,12 +53,6 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={navigateToRoom}
-              className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-            >
-              Create room
-            </button>
             <button
               onClick={() => router.push("/")}
               className="rounded-lg border border-foreground/10 bg-white px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5"
@@ -164,18 +137,7 @@ export default function Home() {
                 Quick start
               </p>
               {userId ? (
-                <div className="mt-4 space-y-3 text-sm">
-                  <p className="text-foreground/70">Welcome back,</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    {userData?.userName ?? "Unnamed"}
-                  </p>
-                  <button
-                    onClick={navigateToRoom}
-                    className="mt-3 w-full rounded-lg bg-black px-4 py-3 text-white transition hover:opacity-90"
-                  >
-                    Create & enter a room
-                  </button>
-                </div>
+                <CreateRoomDisplay username={userData?.userName} />
               ) : (
                 <div className="mt-4 space-y-3 text-sm">
                   <p className="text-foreground/70">
@@ -212,27 +174,7 @@ export default function Home() {
               <p className="text-sm font-medium text-foreground">
                 Recent rooms
               </p>
-              <div className="mt-3 space-y-2 text-sm text-foreground/70">
-                {recentRooms.map((room) => (
-                  <div
-                    key={room.id}
-                    className="flex items-center justify-between rounded-lg border border-foreground/10 bg-foreground/5 px-3 py-2"
-                  >
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {room.label}
-                      </p>
-                      <p className="text-xs text-foreground/50">{room.id}</p>
-                    </div>
-                    <button
-                      onClick={() => router.push(`/room/${room.id}`)}
-                      className="rounded-md bg-black px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
-                    >
-                      Rejoin
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <RoomsListDisplay />
             </div>
           </div>
         </div>

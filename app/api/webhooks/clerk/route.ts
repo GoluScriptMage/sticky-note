@@ -61,16 +61,26 @@ export async function POST(req: Request) {
     case "user.created":
       {
         console.log("👤 Creating user in database...");
-        const { id, email_addresses, first_name, last_name, image_url } =
-          evt.data;
+        const {
+          id,
+          email_addresses,
+          first_name,
+          last_name,
+          image_url,
+          username,
+        } = evt.data as WebhookEvent["data"] & { username?: string };
 
-        // Create new user in db
+        const email = email_addresses[0]?.email_address ?? "";
+        const fullName = `${first_name ?? ""} ${last_name ?? ""}`.trim();
+        const safeUsername = username?.trim() || "";
+
         try {
           await db.user.create({
             data: {
               clerkId: id,
-              email: email_addresses[0]?.email_address ?? "",
-              name: `${first_name ?? ""} ${last_name ?? ""}`.trim() || null,
+              email,
+              name: fullName || safeUsername,
+              username: safeUsername,
               imageUrl: image_url ?? null,
             },
           });

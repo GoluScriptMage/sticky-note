@@ -3,7 +3,6 @@
 // For User Data in localStorage
 export interface UserData {
   userName: string;
-  userId: string;
   roomId: string;
 }
 

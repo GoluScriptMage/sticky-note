@@ -1,0 +1,40 @@
+## Schedule for the next sprint
+
+### -> Tasks sprint 1;
+✔ Fix the dashboard and login Layout issues @started(26-01-03 08:43) @done(26-01-03 15:17) @lasted(6h34m10s)
+✔ Add the type name for the username @done(26-01-03 15:17)
+✔ Add the roomname while creating a new room @done(26-01-03 16:35)
+✔ Improve the UI/UX for both and remove the clutter @done(26-01-03 16:35)
+✔ Define specific actions for dashboard and home page @done(26-01-03 15:17)
+✘ Add a copy url btn for the room link @cancelled(26-01-03 17:42)
+✔ Test it @done(26-01-03 16:35)
+
+### -> Tasks Sprint 2;
+✔ Redefine the schema in note add z index for notes @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
+✔ Add room name for Room Schema @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
+✔ Fix the working of the room @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
+
+## Important Sprint
+☐ Add zoom in and zoom out for the Canvas page
+☐ Add touch support for mobile devices
+☐ Improve the ui for the notes
+☐ Make the notes more interactive and fix their sizing issues 
+☐ Fix the user not showing issue in the canvas
+☐ Fix the toast messages issue
+☐ Save and delete data from the db
+☐ Test it
+
+### Final Sprint
+☐ Add the user actions make them work on actions and do the db data changes
+☐ Add the missing emits and listeners for the data sending and recieving
+☐ Final testing and bug fixes 
+
+Everthing Should Done by the 5th Jan 2025
+
+## Design Improvements Sprint
+☐ -- Fix the design of the homepage btns
+☐ -- Fix the dashboard desings
+☐ -- Fix the notes measuments design
+☐ -- Fix the user navbar in the canvas page make it fix position at the side corner 
+☐ -- Also fix the active user showing field position
+☐ -- Test it
