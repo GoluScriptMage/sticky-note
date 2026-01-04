@@ -277,11 +277,70 @@ const springX = useSpring(x, SPRING_CONFIG);
 
 ## 7. Touch Support (Mobile)
 
+### Overview
+
+Mobile touch support is critical for a good user experience on tablets and phones. The canvas supports three main touch interactions:
+
+1. **Single-finger pan** - Drag to move around the canvas
+2. **Two-finger pinch zoom** - Pinch to zoom in/out
+3. **Single-finger note drag** - Drag notes to reposition them
+
+### Single-Finger Panning
+
+The most common mobile interaction. When the user drags with one finger, the canvas pans:
+
+```typescript
+// Track single finger touch state
+const singleTouchState = useRef<{
+  startX: number;
+  startY: number;
+  startPanX: number;
+  startPanY: number;
+} | null>(null);
+
+const handleTouchStart = (e: TouchEvent) => {
+  if (e.touches.length === 1) {
+    // Single finger - prepare for panning
+    singleTouchState.current = {
+      startX: e.touches[0].clientX,
+      startY: e.touches[0].clientY,
+      startPanX: x.get(),
+      startPanY: y.get(),
+    };
+  }
+};
+
+const handleTouchMove = (e: TouchEvent) => {
+  if (e.touches.length === 1 && singleTouchState.current) {
+    e.preventDefault();
+    
+    // Calculate how far finger moved
+    const deltaX = e.touches[0].clientX - singleTouchState.current.startX;
+    const deltaY = e.touches[0].clientY - singleTouchState.current.startY;
+    
+    // Apply delta to initial pan position
+    x.set(singleTouchState.current.startPanX + deltaX);
+    y.set(singleTouchState.current.startPanY + deltaY);
+  }
+};
+```
+
+### Why We Track Initial Values
+
+Instead of accumulating deltas on each move (which causes drift), we:
+1. Store the **initial** touch position and pan position on touchstart
+2. Calculate total delta from initial position on each move
+3. Apply delta to initial pan value
+
+This approach is more stable and prevents "floating point drift".
+
 ### Pinch-to-Zoom
+
+When two fingers are detected, we switch to zoom mode:
 
 ```typescript
 const handleTouchMove = (e: TouchEvent) => {
-  if (e.touches.length === 2) {
+  if (e.touches.length === 2 && touchState.current) {
     // Calculate distance between fingers
     const currentDistance = getDistance(e.touches);
 
@@ -296,13 +355,57 @@ const handleTouchMove = (e: TouchEvent) => {
 };
 ```
 
-### Two-Finger Pan
+### Two-Finger Pan + Zoom (Simultaneous)
 
 While pinching, we also track the center point movement to enable simultaneous panning:
 
 ```typescript
 const panDeltaX = currentCenter.x - initialCenter.x;
 const panDeltaY = currentCenter.y - initialCenter.y;
+
+// Apply both zoom and pan
+const newX = centerX - worldX * clampedScale + panDeltaX;
+const newY = centerY - worldY * clampedScale + panDeltaY;
+```
+
+### Touch Event Configuration
+
+Important: We use `passive: false` to allow `preventDefault()`:
+
+```typescript
+container.addEventListener("touchstart", handleTouchStart, { passive: false });
+container.addEventListener("touchmove", handleTouchMove, { passive: false });
+container.addEventListener("touchend", handleTouchEnd);
+```
+
+This prevents the browser's default scroll/zoom behavior from interfering.
+
+### CSS Requirements
+
+The canvas container needs `touch-none` to disable browser touch actions:
+
+```tsx
+<div className="... touch-none">
+```
+
+### Note Dragging on Touch
+
+Notes have their own touch handler that converts touch to mouse events:
+
+```typescript
+const handleTouchStart = (e: React.TouchEvent) => {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    // Create synthetic mouse event
+    const syntheticEvent = {
+      preventDefault: () => e.preventDefault(),
+      stopPropagation: () => e.stopPropagation(),
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+    } as React.MouseEvent;
+    onDragStart(id, syntheticEvent, x, y);
+  }
+};
 ```
 
 ---

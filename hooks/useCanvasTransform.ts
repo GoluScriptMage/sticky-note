@@ -92,12 +92,25 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
   const springY = useSpring(y, SPRING_CONFIG);
   const springScale = useSpring(scale, SPRING_CONFIG);
 
-  // Track touch state for pinch-to-zoom
+  // Track touch state for pinch-to-zoom and single finger pan
   const touchState = useRef<{
     initialDistance: number;
     initialScale: number;
     initialCenter: { x: number; y: number };
     initialPan: { x: number; y: number };
+  } | null>(null);
+  
+  // Track single finger pan state
+  const singleTouchState = useRef<{
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+    lastX: number;
+    lastY: number;
+    velocityX: number;
+    velocityY: number;
+    lastTime: number;
   } | null>(null);
 
   // ---------------------------------------------------------------------------
@@ -267,7 +280,7 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
     };
 
     // -------------------------------------------------------------------------
-    // TOUCH EVENTS: Pinch-to-zoom + Two-finger pan
+    // TOUCH EVENTS: Single-finger pan + Pinch-to-zoom
     // -------------------------------------------------------------------------
     const getDistance = (touches: TouchList): number => {
       if (touches.length < 2) return 0;
@@ -287,19 +300,48 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
     };
 
     const handleTouchStart = (e: TouchEvent) => {
+      // Check if touching a note (ignore class)
+      const target = e.target as HTMLElement;
+      if (target.closest('.ignore')) {
+        return; // Let the note handle its own touch
+      }
+      
       if (e.touches.length === 2) {
+        // Two-finger pinch/zoom
         e.preventDefault();
+        singleTouchState.current = null; // Cancel single touch
         touchState.current = {
           initialDistance: getDistance(e.touches),
           initialScale: scale.get(),
           initialCenter: getCenter(e.touches),
           initialPan: { x: x.get(), y: y.get() },
         };
+      } else if (e.touches.length === 1) {
+        // Single finger pan
+        const touch = e.touches[0];
+        singleTouchState.current = {
+          startX: touch.clientX,
+          startY: touch.clientY,
+          startPanX: x.get(),
+          startPanY: y.get(),
+          lastX: touch.clientX,
+          lastY: touch.clientY,
+          velocityX: 0,
+          velocityY: 0,
+          lastTime: Date.now(),
+        };
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      // Check if touching a note
+      const target = e.target as HTMLElement;
+      if (target.closest('.ignore')) {
+        return;
+      }
+      
       if (e.touches.length === 2 && touchState.current) {
+        // Two-finger pinch/zoom
         e.preventDefault();
 
         const currentDistance = getDistance(e.touches);
@@ -338,11 +380,52 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
           x.set(newX);
           y.set(newY);
         }
+      } else if (e.touches.length === 1 && singleTouchState.current) {
+        // Single finger pan
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const now = Date.now();
+        const dt = now - singleTouchState.current.lastTime;
+        
+        // Calculate velocity for momentum
+        if (dt > 0) {
+          singleTouchState.current.velocityX = (touch.clientX - singleTouchState.current.lastX) / dt;
+          singleTouchState.current.velocityY = (touch.clientY - singleTouchState.current.lastY) / dt;
+        }
+        
+        // Update last position
+        singleTouchState.current.lastX = touch.clientX;
+        singleTouchState.current.lastY = touch.clientY;
+        singleTouchState.current.lastTime = now;
+        
+        // Calculate pan delta from start position
+        const deltaX = touch.clientX - singleTouchState.current.startX;
+        const deltaY = touch.clientY - singleTouchState.current.startY;
+        
+        // Apply pan
+        x.set(singleTouchState.current.startPanX + deltaX);
+        y.set(singleTouchState.current.startPanY + deltaY);
       }
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e: TouchEvent) => {
+      // Apply momentum on single finger release
+      if (singleTouchState.current && e.touches.length === 0) {
+        const { velocityX, velocityY } = singleTouchState.current;
+        const momentum = 150; // Momentum multiplier
+        
+        // Only apply momentum if velocity is significant
+        if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
+          const currentX = x.get();
+          const currentY = y.get();
+          x.set(currentX + velocityX * momentum);
+          y.set(currentY + velocityY * momentum);
+        }
+      }
+      
       touchState.current = null;
+      singleTouchState.current = null;
     };
 
     // Attach listeners with passive: false to allow preventDefault

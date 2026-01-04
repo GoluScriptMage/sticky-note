@@ -2,7 +2,7 @@ import { getUserData } from "@/lib/actions/user-action";
 import { useAuth } from "@clerk/nextjs";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, FolderOpen, Loader2, Copy, Check } from "lucide-react";
+import { ArrowRight, FolderOpen, Loader2, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface RoomItem {
@@ -10,12 +10,15 @@ interface RoomItem {
   roomName: string;
 }
 
+const INITIAL_DISPLAY_COUNT = 4;
+
 export default function RoomsListDisplay() {
   const { userId } = useAuth();
   const router = useRouter();
   const [recentRooms, setRecentRooms] = useState<RoomItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -30,7 +33,8 @@ export default function RoomsListDisplay() {
           },
         });
         if (!data) return;
-        setRecentRooms(data.rooms ?? []);
+        // Reverse to show newest first (assuming they're added in order)
+        setRecentRooms((data.rooms ?? []).reverse());
       } catch (error) {
         console.log("Error fetching rooms:", error);
       } finally {
@@ -84,9 +88,13 @@ export default function RoomsListDisplay() {
     "#059669",
   ];
 
+  // Show only first 4 rooms or all based on showAll state
+  const displayedRooms = showAll ? recentRooms : recentRooms.slice(0, INITIAL_DISPLAY_COUNT);
+  const hasMoreRooms = recentRooms.length > INITIAL_DISPLAY_COUNT;
+
   return (
     <div className="space-y-2">
-      {recentRooms.map((room, index) => (
+      {displayedRooms.map((room, index) => (
         <div
           key={room.id}
           className="group flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-gray-200 px-4 py-3 transition-all cursor-pointer"
@@ -143,6 +151,26 @@ export default function RoomsListDisplay() {
           </div>
         </div>
       ))}
+      
+      {/* Show More/Less Button */}
+      {hasMoreRooms && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-all active:scale-[0.98]"
+        >
+          {showAll ? (
+            <>
+              <ChevronUp className="w-4 h-4" />
+              Show less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-4 h-4" />
+              Show {recentRooms.length - INITIAL_DISPLAY_COUNT} more
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
