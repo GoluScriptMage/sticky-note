@@ -84,7 +84,7 @@ export default function Home() {
                 transition={{ delay: 0.2 }}
                 className="rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 mb-3">
                   <Users className="w-5 h-5 text-white" />
                 </div>
                 <p className="font-semibold text-gray-900">Live cursors</p>
@@ -99,7 +99,7 @@ export default function Home() {
                 transition={{ delay: 0.3 }}
                 className="rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25 mb-3">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <p className="font-semibold text-gray-900">Instant rooms</p>

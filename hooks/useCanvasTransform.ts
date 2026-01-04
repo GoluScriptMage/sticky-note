@@ -63,16 +63,17 @@ export interface UseCanvasTransformReturn {
   getTransform: () => { x: number; y: number; scale: number };
 }
 
-const MIN_SCALE = 0.1;
-const MAX_SCALE = 5.0;
-const ZOOM_SENSITIVITY = 0.002; // For wheel zoom
-const ZOOM_BUTTON_STEP = 0.25; // For +/- buttons
+const MIN_SCALE = 0.25; // 25% minimum zoom
+const MAX_SCALE = 3.0;  // 300% maximum zoom
+const ZOOM_SENSITIVITY = 0.008; // Increased for smoother trackpad zoom
+const ZOOM_BUTTON_STEP = 0.15; // For +/- buttons
+const PAN_SPEED = 50; // For keyboard panning
 
 // Spring config for buttery smooth 60fps animations
 const SPRING_CONFIG: SpringOptions = {
-  stiffness: 300,
-  damping: 30,
-  mass: 0.5,
+  stiffness: 400,
+  damping: 35,
+  mass: 0.3,
 };
 
 // =============================================================================
@@ -99,7 +100,7 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
     initialCenter: { x: number; y: number };
     initialPan: { x: number; y: number };
   } | null>(null);
-  
+
   // Track single finger pan state
   const singleTouchState = useRef<{
     startX: number;
@@ -302,10 +303,10 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
     const handleTouchStart = (e: TouchEvent) => {
       // Check if touching a note (ignore class)
       const target = e.target as HTMLElement;
-      if (target.closest('.ignore')) {
+      if (target.closest(".ignore")) {
         return; // Let the note handle its own touch
       }
-      
+
       if (e.touches.length === 2) {
         // Two-finger pinch/zoom
         e.preventDefault();
@@ -336,10 +337,10 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
     const handleTouchMove = (e: TouchEvent) => {
       // Check if touching a note
       const target = e.target as HTMLElement;
-      if (target.closest('.ignore')) {
+      if (target.closest(".ignore")) {
         return;
       }
-      
+
       if (e.touches.length === 2 && touchState.current) {
         // Two-finger pinch/zoom
         e.preventDefault();
@@ -383,26 +384,28 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
       } else if (e.touches.length === 1 && singleTouchState.current) {
         // Single finger pan
         e.preventDefault();
-        
+
         const touch = e.touches[0];
         const now = Date.now();
         const dt = now - singleTouchState.current.lastTime;
-        
+
         // Calculate velocity for momentum
         if (dt > 0) {
-          singleTouchState.current.velocityX = (touch.clientX - singleTouchState.current.lastX) / dt;
-          singleTouchState.current.velocityY = (touch.clientY - singleTouchState.current.lastY) / dt;
+          singleTouchState.current.velocityX =
+            (touch.clientX - singleTouchState.current.lastX) / dt;
+          singleTouchState.current.velocityY =
+            (touch.clientY - singleTouchState.current.lastY) / dt;
         }
-        
+
         // Update last position
         singleTouchState.current.lastX = touch.clientX;
         singleTouchState.current.lastY = touch.clientY;
         singleTouchState.current.lastTime = now;
-        
+
         // Calculate pan delta from start position
         const deltaX = touch.clientX - singleTouchState.current.startX;
         const deltaY = touch.clientY - singleTouchState.current.startY;
-        
+
         // Apply pan
         x.set(singleTouchState.current.startPanX + deltaX);
         y.set(singleTouchState.current.startPanY + deltaY);
@@ -414,7 +417,7 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
       if (singleTouchState.current && e.touches.length === 0) {
         const { velocityX, velocityY } = singleTouchState.current;
         const momentum = 150; // Momentum multiplier
-        
+
         // Only apply momentum if velocity is significant
         if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
           const currentX = x.get();
@@ -423,9 +426,45 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
           y.set(currentY + velocityY * momentum);
         }
       }
-      
+
       touchState.current = null;
       singleTouchState.current = null;
+    };
+
+    // Attach listeners with passive: false to allow preventDefault
+    // -------------------------------------------------------------------------
+    // MIDDLE MOUSE DRAG: Alternative pan method
+    // -------------------------------------------------------------------------
+    let middleMouseState: { startX: number; startY: number; startPanX: number; startPanY: number } | null = null;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      // Middle mouse button (button === 1)
+      if (e.button === 1) {
+        e.preventDefault();
+        middleMouseState = {
+          startX: e.clientX,
+          startY: e.clientY,
+          startPanX: x.get(),
+          startPanY: y.get(),
+        };
+        container.style.cursor = 'grabbing';
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (middleMouseState) {
+        const deltaX = e.clientX - middleMouseState.startX;
+        const deltaY = e.clientY - middleMouseState.startY;
+        x.set(middleMouseState.startPanX + deltaX);
+        y.set(middleMouseState.startPanY + deltaY);
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (e.button === 1 && middleMouseState) {
+        middleMouseState = null;
+        container.style.cursor = '';
+      }
     };
 
     // Attach listeners with passive: false to allow preventDefault
@@ -437,14 +476,90 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
       passive: false,
     });
     container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("mousedown", handleMouseDown);
+    container.addEventListener("mousemove", handleMouseMove);
+    container.addEventListener("mouseup", handleMouseUp);
+    container.addEventListener("mouseleave", handleMouseUp as EventListener);
 
     return () => {
       container.removeEventListener("wheel", handleWheel);
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("mousedown", handleMouseDown);
+      container.removeEventListener("mousemove", handleMouseMove);
+      container.removeEventListener("mouseup", handleMouseUp);
+      container.removeEventListener("mouseleave", handleMouseUp as EventListener);
     };
   }, [x, y, scale, zoomToPoint]);
+
+  // ---------------------------------------------------------------------------
+  // KEYBOARD CONTROLS: Arrow keys and WASD for panning
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't pan if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      let dx = 0;
+      let dy = 0;
+
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          dy = PAN_SPEED;
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          dy = -PAN_SPEED;
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          dx = PAN_SPEED;
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          dx = -PAN_SPEED;
+          break;
+        case '+':
+        case '=':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            zoomIn();
+          }
+          return;
+        case '-':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            zoomOut();
+          }
+          return;
+        case '0':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            resetView();
+          }
+          return;
+        default:
+          return;
+      }
+
+      if (dx !== 0 || dy !== 0) {
+        e.preventDefault();
+        x.set(x.get() + dx);
+        y.set(y.get() + dy);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [x, y, zoomIn, zoomOut, resetView]);
 
   return {
     x,

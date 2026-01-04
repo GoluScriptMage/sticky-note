@@ -8,12 +8,13 @@ export interface UserData {
 
 // Sticky Note Properties
 export interface StickyNote {
-  id: string;
   noteName: string;
   createdBy: string | null;
   content: string | number;
   x: number;
   y: number;
+  color?: string;
+  z?: number;
 }
 
 export interface OtherUserCursor {

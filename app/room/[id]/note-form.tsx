@@ -1,27 +1,33 @@
 import React, { useState } from "react";
-import { useStickyStore, type StickyStore } from "@/store/useStickyStore";
+import { useStickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
 import { v4 as uuidv4 } from "uuid";
 import type { StickyNote } from "@/types/types";
 import { motion } from "framer-motion";
 
+import { useParams } from "next/navigation";
+import { updateNote, createNote } from "@/lib/actions/note-actions";
+
 export default function NoteForm() {
   const {
     setStore,
+    userData,
     coordinates,
     editNote,
     updateExistingNote,
     addNote,
-  }: StickyStore = useStickyStore(
+  } = useStickyStore(
     useShallow((state) => ({
       coordinates: state.coordinates,
       editNote: state.editNote,
       setStore: state.setStore,
       updateExistingNote: state.updateExistingNote,
       addNote: state.addNote,
-      handleNoteEdit: state.handleNoteEdit,
+      userDatat: state.userData,
     }))
   );
+
+  const { id }: { id: string } = useParams();
 
   const [note, setNote] = useState<Partial<StickyNote>>({
     noteName: editNote?.noteName || "",
@@ -29,7 +35,7 @@ export default function NoteForm() {
     createdBy: editNote?.createdBy || "Anonymous",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (editNote?.id) {
@@ -38,16 +44,23 @@ export default function NoteForm() {
         noteName: note.noteName,
         content: note.content,
       });
+      await updateNote(editNote.id, {
+        noteName: note.noteName,
+        content: note.content,
+      });
     } else {
+      const noteId = `${uuidv4().split("-")[0]}_${id?.split("-")[0]}`;
+
       const newNote: StickyNote = {
-        id: uuidv4().split("-")[0],
+        id: noteId,
         noteName: note.noteName || "Untitled",
         content: note.content || "",
-        createdBy: note.createdBy || "Anonymous",
+        createdBy: userData?.userName || "Anonymous",
         x: coordinates?.x ?? 400,
         y: coordinates?.y ?? 300,
       };
       addNote(newNote);
+      createNote(newNote, id);
     }
 
     setStore({ showForm: false, editNote: null });

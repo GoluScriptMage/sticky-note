@@ -227,7 +227,12 @@ export default function CanvasPage() {
   const throttleRef = useRef(0);
   const THROTTLE_DELAY = 50;
 
-  const bgSize = useTransform(springScale, (s) => `${20 * s}px ${20 * s}px`);
+  // Background dots: maintain minimum 15px spacing for visibility at low zoom
+  const bgSize = useTransform(springScale, (s) => {
+    const baseSize = 20;
+    const size = Math.max(15, baseSize * s); // Minimum 15px spacing
+    return `${size}px ${size}px`;
+  });
   const bgPosition = useMotionTemplate`${springX}px ${springY}px`;
 
   useEffect(() => {

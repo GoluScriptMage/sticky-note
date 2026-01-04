@@ -78,33 +78,35 @@ export default function UserNameDisplay() {
 
   if (!currentUserName) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-            <User className="w-6 h-6 text-gray-400" />
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+            <User className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Welcome!</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider">
+              Welcome!
+            </p>
             <p className="font-semibold text-gray-900">Set up your profile</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
-              Choose your display name
+            <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
+              Display name
             </label>
             <input
               name="username"
-              placeholder="Enter your name..."
+              placeholder="What should we call you?"
               required
               type="text"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition-all focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
             />
           </div>
           <button
             type="submit"
-            className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all active:scale-[0.98]"
+            className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all active:scale-[0.98]"
           >
             Save & Continue
           </button>
@@ -117,11 +119,11 @@ export default function UserNameDisplay() {
     <div className="space-y-4">
       {/* User Info */}
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-blue-500/25">
+        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-amber-500/25">
           {currentUserName.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider">
             Signed in as
           </p>
 
@@ -131,12 +133,12 @@ export default function UserNameDisplay() {
                 type="text"
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                 autoFocus
               />
               <button
                 onClick={handleEditSave}
-                className="p-1.5 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-all active:scale-90"
+                className="p-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-all active:scale-90"
                 title="Save"
               >
                 <Check className="w-4 h-4" />
@@ -150,7 +152,7 @@ export default function UserNameDisplay() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <p className="font-semibold text-gray-900 truncate">
                 {currentUserName || userData?.userName}
               </p>
@@ -159,7 +161,7 @@ export default function UserNameDisplay() {
                   setEditValue(currentUserName || "");
                   setIsEditing(true);
                 }}
-                className="p-1 rounded-md text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+                className="p-1 rounded-md text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
                 title="Edit name"
               >
                 <Pencil className="w-3.5 h-3.5" />

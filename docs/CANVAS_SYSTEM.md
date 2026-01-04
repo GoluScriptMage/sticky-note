@@ -313,11 +313,11 @@ const handleTouchStart = (e: TouchEvent) => {
 const handleTouchMove = (e: TouchEvent) => {
   if (e.touches.length === 1 && singleTouchState.current) {
     e.preventDefault();
-    
+
     // Calculate how far finger moved
     const deltaX = e.touches[0].clientX - singleTouchState.current.startX;
     const deltaY = e.touches[0].clientY - singleTouchState.current.startY;
-    
+
     // Apply delta to initial pan position
     x.set(singleTouchState.current.startPanX + deltaX);
     y.set(singleTouchState.current.startPanY + deltaY);
@@ -328,6 +328,7 @@ const handleTouchMove = (e: TouchEvent) => {
 ### Why We Track Initial Values
 
 Instead of accumulating deltas on each move (which causes drift), we:
+
 1. Store the **initial** touch position and pan position on touchstart
 2. Calculate total delta from initial position on each move
 3. Apply delta to initial pan value
@@ -460,6 +461,46 @@ store/
 3. **Use `will-change: transform`** on transform layer (framer-motion does this)
 4. **Throttle cursor broadcasts** to prevent socket flooding
 5. **Use `passive: false`** on wheel events to prevent default scrolling
+
+---
+
+## 11. UI Components
+
+### Recent Rooms List (Dashboard)
+
+The recent rooms component shows a paginated list of user's rooms with smart defaults:
+
+**Features:**
+
+- Shows only the 4 most recent rooms by default
+- "Show more" button expands to show all rooms
+- Copy button to share room ID via clipboard
+- Toast notification confirms copy action
+
+**Implementation:**
+
+```typescript
+const INITIAL_DISPLAY_COUNT = 4;
+const [showAll, setShowAll] = useState(false);
+
+// Slice the array based on showAll state
+const displayedRooms = showAll
+  ? recentRooms
+  : recentRooms.slice(0, INITIAL_DISPLAY_COUNT);
+
+// Copy to clipboard with feedback
+const handleCopyId = async (roomId: string) => {
+  await navigator.clipboard.writeText(roomId);
+  toast.success("Room ID copied to clipboard!");
+};
+```
+
+**Why limit to 4?**
+
+1. Prevents overwhelming the UI on mobile
+2. Keeps the dashboard focused on quick actions
+3. Most users only need their recent rooms
+4. Expandable for power users who need full history
 
 ---
 

@@ -2,7 +2,15 @@ import { getUserData } from "@/lib/actions/user-action";
 import { useAuth } from "@clerk/nextjs";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, FolderOpen, Loader2, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  ArrowRight,
+  FolderOpen,
+  Loader2,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface RoomItem {
@@ -89,7 +97,9 @@ export default function RoomsListDisplay() {
   ];
 
   // Show only first 4 rooms or all based on showAll state
-  const displayedRooms = showAll ? recentRooms : recentRooms.slice(0, INITIAL_DISPLAY_COUNT);
+  const displayedRooms = showAll
+    ? recentRooms
+    : recentRooms.slice(0, INITIAL_DISPLAY_COUNT);
   const hasMoreRooms = recentRooms.length > INITIAL_DISPLAY_COUNT;
 
   return (
@@ -151,7 +161,7 @@ export default function RoomsListDisplay() {
           </div>
         </div>
       ))}
-      
+
       {/* Show More/Less Button */}
       {hasMoreRooms && (
         <button

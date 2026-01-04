@@ -5,12 +5,7 @@ import { db } from "@/lib/db";
 import { title } from "process";
 import type { StickyNote } from "@/types/types";
 import type { Prisma } from "@prisma/client";
-
-const checker = (value: string, message: string) => {
-  if (!value) {
-    throw new Error(message);
-  }
-};
+import { checker } from "../utils";
 
 // get any of user's data
 export async function getUserData(userId: string, fields: Prisma.UserSelect) {
@@ -67,33 +62,6 @@ export async function getUserNotes() {
   return user;
 }
 
-// create a new note
-export async function createNote(data: Partial<StickyNote>, roomId: string) {
-  if (!author || !content || !title) {
-    throw new Error("Missing required Fields");
-  }
-
-  const { userId } = await auth();
-
-  checker(userId, "User not authenticated");
-
-  const user = await db.user.findUnique({
-    where: {
-      clerkId: userId,
-    },
-  });
-
-  checker(user?.id, "User not found in DataBase");
-
-  const newNote = await db.note.create({
-    data: {
-      ...data,
-      roomId,
-      userId: user.id,
-    },
-  });
-  return newNote;
-}
 
 // create new room
 export async function createRoom(roomName?: string) {
