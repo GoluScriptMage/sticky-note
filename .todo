@@ -15,9 +15,10 @@
 ✔ Fix the working of the room @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
 
 ## Important Sprint
-☐ Add zoom in and zoom out for the Canvas page
-☐ Add touch support for mobile devices
-☐ Improve the ui for the notes
+✔ Add zoom in and zoom out for the Canvas page @started(26-01-04 06:58) @done(26-01-04 13:37) @lasted(6h39m18s)
+✔ Add touch support for mobile devices @done(26-01-04 13:37)
+###Important - Fix the join room before joining find room exists or not
+✔ Improve the ui for the notes @done(26-01-04 13:37)
 ☐ Make the notes more interactive and fix their sizing issues 
 ☐ Fix the user not showing issue in the canvas
 ☐ Fix the toast messages issue
@@ -32,9 +33,9 @@
 Everthing Should Done by the 5th Jan 2025
 
 ## Design Improvements Sprint
-☐ -- Fix the design of the homepage btns
-☐ -- Fix the dashboard desings
-☐ -- Fix the notes measuments design
-☐ -- Fix the user navbar in the canvas page make it fix position at the side corner 
-☐ -- Also fix the active user showing field position
-☐ -- Test it
+✔ -- Fix the design of the homepage btns @done(26-01-04 14:08)
+✔ -- Fix the dashboard desings @done(26-01-04 14:08)
+✔ -- Fix the notes measuments design @done(26-01-04 14:08)
+✔ -- Fix the user navbar in the canvas page make it fix position at the side corner @done(26-01-04 14:08)
+✔ -- Also fix the active user showing field position @done(26-01-04 14:08)
+✔ -- Test it @done(26-01-04 14:08)

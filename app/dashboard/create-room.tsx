@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { createRoom } from "@/lib/actions/user-action";
+import { Plus, Loader2 } from "lucide-react";
 
 export default function CreateRoomDisplay({
   username,
@@ -18,7 +19,6 @@ export default function CreateRoomDisplay({
   const onSubmitHandler = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check the userId
     if (!userId) {
       toast.info("Please sign in to continue");
       router.push("/sign-in");
@@ -26,40 +26,57 @@ export default function CreateRoomDisplay({
     }
     setLoading(true);
 
-    // Get the roomName
-    const roomName = new FormData(e.currentTarget).get("roomName") as string;
+    const roomName = new FormData(e.currentTarget as HTMLFormElement).get(
+      "roomName"
+    ) as string;
 
     try {
-      // Call the createRoom Fn
       const newRoomId: string = await createRoom(roomName);
       setLoading(false);
-
-      // get the room Id and set it
       router.push(`/room/${newRoomId}`);
     } catch (error) {
+      setLoading(false);
+      toast.error("Failed to create room");
       console.log("Can't Create new room at this moment", error);
     }
   };
 
   return (
-    <div className="mt-4 space-y-3 text-sm">
-      <p className="text-foreground/70">Welcome back,</p>
-      <p className="text-lg font-semibold text-foreground">
-        {username ?? "Unnamed"}
-      </p>
-      <form onSubmit={(e) => onSubmitHandler(e)}>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-lg font-bold text-gray-700">
+          {(username || "A").charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <p className="text-sm text-gray-500">Welcome back,</p>
+          <p className="font-semibold text-gray-900">{username ?? "Friend"}</p>
+        </div>
+      </div>
+
+      <form onSubmit={onSubmitHandler} className="space-y-3">
         <input
           type="text"
-          required={true}
-          placeholder="Enter Room Name"
+          required
+          placeholder="Enter room name..."
           name="roomName"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition-all focus:border-amber-300 focus:bg-white focus:ring-4 focus:ring-amber-100"
         />
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 w-full rounded-lg bg-black px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {loading ? "Creating..." : "Create Room"}
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              Create Room
+            </>
+          )}
         </button>
       </form>
     </div>
