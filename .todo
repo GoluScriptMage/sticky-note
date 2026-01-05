@@ -19,23 +19,31 @@
 ✔ Add touch support for mobile devices @done(26-01-04 13:37)
 ###Important - Fix the join room before joining find room exists or not
 ✔ Improve the ui for the notes @done(26-01-04 13:37)
-☐ Make the notes more interactive and fix their sizing issues 
-☐ Fix the user not showing issue in the canvas
-☐ Fix the toast messages issue
-☐ Save and delete data from the db
-☐ Test it
+✔ Make the notes more interactive and fix their sizing issues @done(26-01-05 13:40)
+✔ Fix the toast messages issue @done(26-01-05 13:40)
+
 
 ### Final Sprint
-☐ Add the user actions make them work on actions and do the db data changes
-☐ Add the missing emits and listeners for the data sending and recieving
-☐ Final testing and bug fixes 
 
 Everthing Should Done by the 5th Jan 2025
 
-## Design Improvements Sprint
-✔ -- Fix the design of the homepage btns @done(26-01-04 14:08)
-✔ -- Fix the dashboard desings @done(26-01-04 14:08)
-✔ -- Fix the notes measuments design @done(26-01-04 14:08)
-✔ -- Fix the user navbar in the canvas page make it fix position at the side corner @done(26-01-04 14:08)
-✔ -- Also fix the active user showing field position @done(26-01-04 14:08)
-✔ -- Test it @done(26-01-04 14:08)
+## Remaining Improvements Sprint
+✔ Add the note edit & create and delete functionality with the db @started(26-01-05 13:42) @done(26-01-05 16:22) @lasted(2h40m48s)
+☐ Fix the join room before joining find it if exists or not
+☐ Fix the user not showing issue in the canvas
+☐ Add the user actions make them work on actions and do the db data changes
+☐ Add the missing emits and listeners for the data sending and recieving
+☐ Final testing and bug fixes 
+☐ Save and delete data from the db
+☐ Test it
+
+//New Todo For today
+
+☐ -> Complete the above one
+☐ -> Do work on these tasks for 2 hours
+☐ -> Test it properly and learn what happened & and try to write what u learned
+☐ -> After 4 pm start DSA learning and pratice it for 3 question at least (90 minutes)
+☐ -> break at 5: 30 - 6:00 pm
+☐
+☐ -> Resume the remaining work of the project and complete it by 7:00pm
+☐ -> Learn somthing new from next or ts do some pratices for 1 hour
