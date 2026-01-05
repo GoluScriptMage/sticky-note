@@ -15,10 +15,13 @@ import {
   Clock,
   ArrowRight,
 } from "lucide-react";
+import { verifyRoom } from "@/lib/actions/room-actions";
+import { toast } from "sonner";
 
 export default function Home() {
   const { userId } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingJoin, setIsLoadingJoin] = useState(false);
   const [roomInput, setRoomInput] = useState("");
   const router = useRouter();
 
@@ -27,6 +30,24 @@ export default function Home() {
       userData: state.userData,
     }))
   );
+
+  const joinRoomHandler = async () => {
+    try {
+      const isValid: boolean = await verifyRoom(roomInput);
+      if (isValid) {
+        router.push(`/room/${roomInput}`);
+      } else {
+        setIsLoadingJoin(false);
+        toast.error("Room not found!", {
+          description: "Please check room Id and try Again!.",
+          duration: 12000,
+        });
+
+      }
+    } catch (error) {
+      console.error("Error Verifying room:", error);
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -117,19 +138,25 @@ export default function Home() {
                     />
                   </div>
                   <button
+                    disabled={isLoadingJoin}
                     onClick={() => {
                       if (!userId) {
                         router.push("/sign-in");
                         return;
                       }
-                      if (roomInput) {
-                        router.push(`/room/${roomInput}`);
-                      }
+                      setIsLoadingJoin(true);
+                      joinRoomHandler();
                     }}
                     className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/20 hover:bg-gray-800 transition-all active:scale-95"
                   >
-                    Join room
-                    <ArrowRight className="w-4 h-4" />
+                    {isLoadingJoin ? (
+                      "Joining..."
+                    ) : (
+                      <>
+                        <span>Join Room</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

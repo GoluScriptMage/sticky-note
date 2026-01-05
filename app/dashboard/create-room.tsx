@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { createRoom } from "@/lib/actions/user-action";
+import { createRoom } from "@/lib/actions/room-actions";
 import { Plus, Loader2 } from "lucide-react";
 
 export default function CreateRoomDisplay({

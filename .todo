@@ -29,7 +29,7 @@ Everthing Should Done by the 5th Jan 2025
 
 ## Remaining Improvements Sprint
 ✔ Add the note edit & create and delete functionality with the db @started(26-01-05 13:42) @done(26-01-05 16:22) @lasted(2h40m48s)
-☐ Fix the join room before joining find it if exists or not
+✔ Fix the join room before joining find it if exists or not @started(26-01-05 17:20) @done(26-01-05 17:20) @lasted(6s)
 ☐ Fix the user not showing issue in the canvas
 ☐ Add the user actions make them work on actions and do the db data changes
 ☐ Add the missing emits and listeners for the data sending and recieving
