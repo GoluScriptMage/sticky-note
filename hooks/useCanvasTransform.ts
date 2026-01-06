@@ -10,11 +10,11 @@ import {
 
 // =============================================================================
 // COORDINATE SYSTEM DOCUMENTATION
-// =============================================================================
 /**
+ // =============================================================================
  * SCREEN SPACE vs WORLD SPACE
- *
- * Screen Space: Pixels relative to the browser viewport (0,0 is top-left of screen)
+*
+* Screen Space: Pixels relative to the browser viewport (0,0 is top-left of screen)
  *   - e.clientX, e.clientY give us screen space coordinates
  *
  * World Space: Coordinates in the infinite canvas world

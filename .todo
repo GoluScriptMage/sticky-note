@@ -1,26 +1,28 @@
 ## Schedule for the next sprint
 
 ### -> Tasks sprint 1;
-✔ Fix the dashboard and login Layout issues @started(26-01-03 08:43) @done(26-01-03 15:17) @lasted(6h34m10s)
-✔ Add the type name for the username @done(26-01-03 15:17)
-✔ Add the roomname while creating a new room @done(26-01-03 16:35)
-✔ Improve the UI/UX for both and remove the clutter @done(26-01-03 16:35)
-✔ Define specific actions for dashboard and home page @done(26-01-03 15:17)
-✘ Add a copy url btn for the room link @cancelled(26-01-03 17:42)
-✔ Test it @done(26-01-03 16:35)
-
+{
+    ✔ Fix the dashboard and login Layout issues @started(26-01-03 08:43) @done(26-01-03 15:17) @lasted(6h34m10s)
+    ✔ Add the type name for the username @done(26-01-03 15:17)
+    ✔ Add the roomname while creating a new room @done(26-01-03 16:35)
+    ✔ Improve the UI/UX for both and remove the clutter @done(26-01-03 16:35)
+    ✔ Define specific actions for dashboard and home page @done(26-01-03 15:17)
+    ✘ Add a copy url btn for the room link @cancelled(26-01-03 17:42)
+    ✔ Test it @done(26-01-03 16:35)
+}
 ### -> Tasks Sprint 2;
-✔ Redefine the schema in note add z index for notes @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
-✔ Add room name for Room Schema @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
-✔ Fix the working of the room @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
+{ 
+       ✔ Redefine the schema in note add z index for notes @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
+    ✔ Add room name for Room Schema @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
+    ✔ Fix the working of the room @started(26-01-03 08:40) @done(26-01-03 08:43) @lasted(3m38s)
 
-## Important Sprint
-✔ Add zoom in and zoom out for the Canvas page @started(26-01-04 06:58) @done(26-01-04 13:37) @lasted(6h39m18s)
-✔ Add touch support for mobile devices @done(26-01-04 13:37)
-###Important - Fix the join room before joining find room exists or not
-✔ Improve the ui for the notes @done(26-01-04 13:37)
-✔ Make the notes more interactive and fix their sizing issues @done(26-01-05 13:40)
-✔ Fix the toast messages issue @done(26-01-05 13:40)
+    ## Important Sprint
+    ✔ Add zoom in and zoom out for the Canvas page @started(26-01-04 06:58) @done(26-01-04 13:37) @lasted(6h39m18s)
+    ✔ Add touch support for mobile devices @done(26-01-04 13:37)
+    ###Important - Fix the join room before joining find room exists or not
+    ✔ Improve the ui for the notes @done(26-01-04 13:37)
+    ✔ Make the notes more interactive and fix their sizing issues @done(26-01-05 13:40)
+    ✔ Fix the toast messages issue @done(26-01-05 13:40)}
 
 
 ### Final Sprint
@@ -38,7 +40,8 @@ Everthing Should Done by the 5th Jan 2025
 ☐ Test it
 
 //New Todo For today
-
+✔ // Read the useCanvas hook Code today @started(26-01-06 16:50) @done(26-01-06 17:03) @lasted(13m12s)
+☐ // Understand the current flow to plan the next steps @started(26-01-06 17:03)
 ☐ -> Complete the above one
 ☐ -> Do work on these tasks for 2 hours
 ☐ -> Test it properly and learn what happened & and try to write what u learned
@@ -47,3 +50,11 @@ Everthing Should Done by the 5th Jan 2025
 ☐
 ☐ -> Resume the remaining work of the project and complete it by 7:00pm
 ☐ -> Learn somthing new from next or ts do some pratices for 1 hour
+
+Check for These
+Priority,Task,Why?
+☐ 1. High,View Persistence,"Agar tu refresh karega, toh tera zoom/pan reset ho jayega. Save x, y, scale to LocalStorage."
+☐ 2. High,Note Spawning,"Jab user double-click kare, toh screenToWorld use karke exact cursor position pe note create ho."
+☐ 3. Mid,Z-Index Management,"Jo note click ho, wo sabse upar (top layer) aa jaye. z-index logic add kar."
+☐ 4. Mid,Boundary Logic,Tere Zod mein -10000 to 10000 limit hai. Hook mein add kar ki user iske bahar pan na kar sake.
+☐ 5. Pro,Mini-map,"Ek chota view-port corner mein, taaki pata chale ""World"" mein tu kahan hai. 🌍"
