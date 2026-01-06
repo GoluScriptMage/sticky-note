@@ -1,0 +1,52 @@
+--- Questions that I have ---
+
+1. What about the problems with the cache like in this code we can cache for 30 s but what will it be even useful for just 30s in our Cascade
+-> sec thing in the later examplet what if the user is deleted or got some actions user no avaiable how it it going to handle
+{
+    ### **✅ Solution 1: React Server Components Cache (Built-in!)**
+
+ Next.js **automatically caches** fetch requests and database queries!
+
+    ```typescript
+    // lib/actions/user-action.ts
+    export async function getUserData(clerkId: string) {
+    "use server";
+
+    // ✅ Next.js caches this for ~30 seconds automatically!
+    const user = await db.user.findUnique({
+        where: { clerkId },
+    });
+
+    return user;
+    }
+    ```
+
+    **How it works:**
+
+    - First call: Queries database (200ms)
+    - Next 30 seconds: Returns cached result (0.1ms)
+    - **50 requests → Only 2-3 database queries!** 🎉
+
+    ---
+
+    ### **✅ Solution 2: React `cache()` for Request-Level Deduplication**
+
+    ```typescript
+}
+
+2. What is request level caching 
+
+3. What does this do  await db.$transaction
+
+4. In this code i haven't seen calling the user or any cache related thing to check for id
+{
+  // Database (50-200ms, with rollback)
+  try {
+    const savedNote = await createNote(noteData); // ← Cached user lookup!
+    updateNote(tempId, savedNote);
+    socket?.emit("note_confirmed", { tempId, realId: savedNote.id });
+  } catch (error) {
+    deleteNote(tempId);
+    socket?.emit("note_rollback", { tempId });
+  }
+}
