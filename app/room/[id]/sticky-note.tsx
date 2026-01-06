@@ -3,6 +3,7 @@ import { useShallow } from "zustand/shallow";
 import type { StickyNote } from "@/types/types";
 import React from "react";
 import { motion } from "framer-motion";
+import { deleteNote } from "@/lib/actions/note-actions";
 
 interface StickyNoteProps extends StickyNote {
   showButtons?: boolean;
@@ -202,6 +203,8 @@ export default function StickyNoteComponent({
                 onClick={(e) => {
                   e.stopPropagation();
                   handleNoteDelete(id);
+                  console.log("Deleting noteId:", id);
+                  deleteNote(id);
                 }}
                 className="w-7 h-7 flex items-center justify-center bg-white/80 hover:bg-red-500 text-gray-600 hover:text-white rounded-lg shadow-sm hover:shadow transition-all duration-150 active:scale-90"
                 title="Delete"

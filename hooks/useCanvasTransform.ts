@@ -64,7 +64,7 @@ export interface UseCanvasTransformReturn {
 }
 
 const MIN_SCALE = 0.25; // 25% minimum zoom
-const MAX_SCALE = 3.0;  // 300% maximum zoom
+const MAX_SCALE = 3.0; // 300% maximum zoom
 const ZOOM_SENSITIVITY = 0.008; // Increased for smoother trackpad zoom
 const ZOOM_BUTTON_STEP = 0.15; // For +/- buttons
 const PAN_SPEED = 50; // For keyboard panning
@@ -435,7 +435,12 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
     // -------------------------------------------------------------------------
     // MIDDLE MOUSE DRAG: Alternative pan method
     // -------------------------------------------------------------------------
-    let middleMouseState: { startX: number; startY: number; startPanX: number; startPanY: number } | null = null;
+    let middleMouseState: {
+      startX: number;
+      startY: number;
+      startPanX: number;
+      startPanY: number;
+    } | null = null;
 
     const handleMouseDown = (e: MouseEvent) => {
       // Middle mouse button (button === 1)
@@ -447,7 +452,7 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
           startPanX: x.get(),
           startPanY: y.get(),
         };
-        container.style.cursor = 'grabbing';
+        container.style.cursor = "grabbing";
       }
     };
 
@@ -463,7 +468,7 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button === 1 && middleMouseState) {
         middleMouseState = null;
-        container.style.cursor = '';
+        container.style.cursor = "";
       }
     };
 
@@ -489,7 +494,10 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
       container.removeEventListener("mousedown", handleMouseDown);
       container.removeEventListener("mousemove", handleMouseMove);
       container.removeEventListener("mouseup", handleMouseUp);
-      container.removeEventListener("mouseleave", handleMouseUp as EventListener);
+      container.removeEventListener(
+        "mouseleave",
+        handleMouseUp as EventListener
+      );
     };
   }, [x, y, scale, zoomToPoint]);
 
@@ -499,7 +507,10 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't pan if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
@@ -507,40 +518,40 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
       let dy = 0;
 
       switch (e.key) {
-        case 'ArrowUp':
-        case 'w':
-        case 'W':
+        case "ArrowUp":
+        case "w":
+        case "W":
           dy = PAN_SPEED;
           break;
-        case 'ArrowDown':
-        case 's':
-        case 'S':
+        case "ArrowDown":
+        case "s":
+        case "S":
           dy = -PAN_SPEED;
           break;
-        case 'ArrowLeft':
-        case 'a':
-        case 'A':
+        case "ArrowLeft":
+        case "a":
+        case "A":
           dx = PAN_SPEED;
           break;
-        case 'ArrowRight':
-        case 'd':
-        case 'D':
+        case "ArrowRight":
+        case "d":
+        case "D":
           dx = -PAN_SPEED;
           break;
-        case '+':
-        case '=':
+        case "+":
+        case "=":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
             zoomIn();
           }
           return;
-        case '-':
+        case "-":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
             zoomOut();
           }
           return;
-        case '0':
+        case "0":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
             resetView();
@@ -557,8 +568,8 @@ export function useCanvasTransform(): UseCanvasTransformReturn {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [x, y, zoomIn, zoomOut, resetView]);
 
   return {

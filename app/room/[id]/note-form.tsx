@@ -23,7 +23,7 @@ export default function NoteForm() {
       setStore: state.setStore,
       updateExistingNote: state.updateExistingNote,
       addNote: state.addNote,
-      userDatat: state.userData,
+      userData: state.userData,
     }))
   );
 
@@ -44,13 +44,13 @@ export default function NoteForm() {
         noteName: note.noteName,
         content: note.content,
       });
-      await updateNote(editNote.id, {
+      updateNote({
+        id: editNote.id,
         noteName: note.noteName,
         content: note.content,
       });
     } else {
       const noteId = `${uuidv4().split("-")[0]}_${id?.split("-")[0]}`;
-
       const newNote: StickyNote = {
         id: noteId,
         noteName: note.noteName || "Untitled",
