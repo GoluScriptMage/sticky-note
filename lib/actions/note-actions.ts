@@ -1,28 +1,18 @@
 "use server";
 
 import type { StickyNote } from "@/types/types";
-import { auth } from "@clerk/nextjs/server";
 import { db } from "../db";
-import { checker } from "../utils";
+import { actionWrapper, ensure, getAuthUser } from "../utils";
 
 type NoteData = Pick<StickyNote, "id" | "content" | "noteName">;
 
 // create a new note
 export async function createNote(data: Partial<StickyNote>, roomId: string) {
-  try {
-    const { userId } = await auth();
+  return actionWrapper(async () => {
+    // Step 1
+    const user = await getAuthUser();
 
-    checker(userId, "User not authenticated");
-
-    const user = await db.user.findUnique({
-      where: {
-        clerkId: userId,
-      },
-    });
-    console.log(user);
-
-    checker(user?.id, "User not found in DataBase");
-
+    // Step 2. Create the note
     const newNote = await db.note.create({
       data: {
         id: data.id,
@@ -32,53 +22,71 @@ export async function createNote(data: Partial<StickyNote>, roomId: string) {
         createdBy: user.username,
       },
     });
-    return newNote;
-  } catch (error) {
-    console.log("Error from CreateNote", error);
-  }
+    return ensure(newNote, "Create note failed!");
+  });
 }
 
+// update an existing note for - (only the owner)
 export async function updateNote(data: NoteData) {
-  const { userId } = await auth();
-  console.log("Updating note:", data.id);
+  return actionWrapper(async () => {
+    // step 1. Check for user auth
+    const user = await getAuthUser();
 
-  if (!userId) {
-    throw new Error("User not authenticated");
-  }
-
-  try {
+    // Step 2. update the note
     const updatedNote = await db.note.update({
       where: {
         id: data.id,
+        userId: user.id,
       },
       data: {
         content: data.content,
         noteName: data.noteName,
       },
     });
-    console.log("✅ Note updated successfully:", updatedNote.id);
-    return updatedNote;
-  } catch (error) {
-    console.error("❌ Error from UpdateNote:", error);
-    throw error;
-  }
+
+    // step 3. Return the updated note
+    return ensure(updatedNote, "Update note failed!");
+  });
 }
 
+// Delete note for - (only the owner)
 export async function deleteNote(noteId: string) {
-  const { userId } = await auth();
+  return actionWrapper(async () => {
+    // Step 1. Check for user auth
+    const user = await getAuthUser();
 
-  if (!userId) {
-    throw new Error("user not authenticated");
-  }
-  console.log("Deleting note with ID:", noteId);
-  try {
-    await db.note.delete({
+    // Step 2. Delete the note
+    const deleteNote = await db.note.delete({
       where: {
         id: noteId,
+        userId: user.id,
       },
     });
-  } catch (error) {
-    console.error("❌ Error deleting note:", error);
-    throw error;
-  }
+    return ensure(deleteNote, "Delete note failed!");
+  });
+}
+
+// get user's notes -  for many notes use getUserData
+export async function getUserNote(noteId?: string) {
+  return actionWrapper(async () => {
+    // Step 1. Get authenticated user
+     await getAuthUser();
+
+    // Step 2. Find user with notes from DATABASE
+    const userWithNotes = await db.note.findUnique({
+      where: {
+        id: noteId, // Get notes for specific user or auth user
+      },
+      include: {
+        notes: {
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+      },
+    });
+
+    // Step 3. Return notes
+    return ensure(userWithNotes?.notes || [], "No notes found for user");
+  });
 }

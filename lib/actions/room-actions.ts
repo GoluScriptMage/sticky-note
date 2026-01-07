@@ -1,49 +1,34 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
-import { syncUser } from "./user-action";
 import { db } from "../db";
+import { actionWrapper, ensure, getAuthUser } from "../utils";
 
 //Verify room before joining if it exists or not
 export async function verifyRoom(roomId: string) {
-  // Get the user id
-  const { userId } = await auth();
+  return actionWrapper(async () => {
+    // Step 1
+    const user = await getAuthUser();
 
-  if (!userId) return null;
-
-  try {
+    // Step 2. check the room exists
     const room = await db.room.findUnique({
       where: {
         id: roomId,
       },
     });
-  } catch (err) {
-    console.error("Error verifying room: ", err);
-  }
-
-  //
+    // Step 3. return room or throw error
+    return ensure(room, "Room not found");
+  });
 }
 
 // create new room (auto-syncs user if not found)
 export async function createRoom(roomName?: string) {
-  const { userId: clerkUserId } = await auth();
+  return actionWrapper(async () => {
+    // Step 1.
+    const user = await getAuthUser();
 
-  checker(clerkUserId, "User not authenticated");
+    // Step 2. create the room`
+    const name = roomName?.trim() || "New Room";
 
-  let user = await db.user.findUnique({ where: { clerkId: clerkUserId } });
-
-  // Auto-sync user if not found
-  if (!user) {
-    console.log("⚠️ User not in DB for room creation, syncing first...");
-    user = await syncUser();
-  }
-
-  checker(user?.id, "User not found in database");
-
-  console.log("Creating room with name:", roomName);
-  const name = roomName?.trim() || "New Room";
-
-  try {
     const newRoom = await db.room.create({
       data: {
         roomName: name,
@@ -55,9 +40,58 @@ export async function createRoom(roomName?: string) {
         },
       },
     });
+
+    // Step 3. Return the new room Id
     return newRoom.id;
-  } catch (err) {
-    console.error("Can't create new room", err);
-    throw err;
-  }
+  });
+}
+
+// Join room by adding user to room user list
+export async function joinRoom(roomId: string) {
+  return actionWrapper(async () => {
+    // Step 1.
+    const user = await getAuthUser();
+
+    // Step 2. Join the room
+    const updatedRoom = await db.room.update({
+      where: {
+        id: roomId,
+      },
+      data: {
+        users: {
+          connect: {
+            id: user!.id,
+          },
+        },
+      },
+    });
+
+    // Step 3. Return the updated room
+    return ensure(updatedRoom, "Join Room failed!");
+  });
+}
+
+// Left room by removing user from room users list
+export async function leaveRoom(roomId: string) {
+  return actionWrapper(async () => {
+    // Step 1
+    const user = await getAuthUser();
+
+    // Step 2. update the room
+    const updatedRoom = await db.room.update({
+      where: {
+        id: roomId,
+      },
+      data: {
+        users: {
+          disconnect: {
+            id: user?.id,
+          },
+        },
+      },
+    });
+
+    // return updated room
+    return ensure(updatedRoom, "Could not leave room!");
+  });
 }

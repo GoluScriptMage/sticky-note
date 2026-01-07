@@ -50,3 +50,80 @@
     socket?.emit("note_rollback", { tempId });
   }
 }
+
+5. I have thought of this method t avoid calling and doing the same thing over and over again
+{ 
+                      1. The Concept: "Authenticated Action" Wrapper 🛡️
+        Instead of repeating the check inside your function, you create a "Guard" function. This guard does the boring work (checking Clerk, finding the user in Prisma) and then just hands you the User Object.
+
+        2. The Implementation: getAuthUser Helper 🛠️
+        Create a helper file (e.g., lib/auth-utils.ts) to handle the "Heavy Lifting":
+
+        TypeScript
+
+        // lib/auth-utils.ts
+        import { auth } from "@clerk/nextjs/server";
+        import { db } from "@/db";
+        import { syncUser } from "./user-action";
+
+        export async function getAuthUser() {
+        const { userId: clerkUserId } = await auth();
+        if (!clerkUserId) throw new Error("Unauthorized");
+
+        let user = await db.user.findUnique({ where: { clerkId: clerkUserId } });
+
+        // Handle that Auto-sync you wrote
+        if (!user) {
+          user = await syncUser();
+        }
+
+        if (!user) throw new Error("User sync failed");
+
+        return user; // Returns the full DB user object
+        }
+        3. Your New "Clean" createRoom Function ✨
+        Now, look how much smaller and easier to read your createRoom becomes:
+
+        TypeScript
+
+        export async function createRoom(roomName?: string) {
+        // One line replaces all those checks!
+        const user = await getAuthUser();
+
+        const name = roomName?.trim() || "New Room";
+
+        try {
+          const newRoom = await db.room.create({
+            data: {
+              roomName: name,
+              ownerId: user.id, // Direct ID from our helper
+              users: { connect: { id: user.id } },
+            },
+          });
+          return newRoom.id;
+        } catch (err) {
+          console.error("Can't create new room", err);
+          throw new Error("Room creation failed");
+        }
+        }
+        4. Why this is the "Pro" way 🧠
+        Single Source of Truth: If you ever change how you sync users, you only change it in getAuthUser, not in 20 different files.
+
+        Focus on Logic: Your createRoom or verifyRoom functions now only contain "Room Logic," not "Auth Logic".
+
+        Speed: You can now write new features 5x faster because you don't have to think about clerkUserId or findUnique every time.
+}
+
+the steps i thought are these correct me if i am seems WRONG
+1. Refractor the code (currently there are many reptetive and some codes are messed up in structure)
+ -> What i will do with refractioring break apart the too big code of the page.jsx 
+ - and i will try to do one source of truth or two for a file at most except the useCanvas custom hook file
+
+ 2. Next i will implement the caching and then the 5th method about
+  -> and also i will the do the backend refratioring 
+  -> currently i don't have written the socket action currently update them
+
+3. After this i will do my focus on making the code works and then implement DSA things i have learned to solve the bugs and problems
+  -> After doing the refratoring and thinking the socket i will do define the actions and the flow 
+  -> after this the implementation 
+  -> code testing

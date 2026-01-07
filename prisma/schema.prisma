@@ -37,7 +37,7 @@ model Room {
 }
 
 model Note {
-  id              String   
+  id              String     
   noteName        String
   content         String
   createdBy      String

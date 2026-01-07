@@ -29,6 +29,14 @@
 
 Everthing Should Done by the 5th Jan 2025
 
+
+// Today Tasks 
+✔ -> Do the getUser duplication done and also refractored the action @started(26-01-07 14:56) @done(26-01-07 16:57) @lasted(2h1m26s)
+☐ -> Refractor the big file 
+☐ -> Organize the code base
+
+
+
 ## Remaining Improvements Sprint
 ✔ Add the note edit & create and delete functionality with the db @started(26-01-05 13:42) @done(26-01-05 16:22) @lasted(2h40m48s)
 ✔ Fix the join room before joining find it if exists or not @started(26-01-05 17:20) @done(26-01-05 17:20) @lasted(6s)
