@@ -27,6 +27,9 @@ export function ensure<T>(
   return value;
 }
 
+const hell: number = "hell";
+console.log(hell);
+
 // Action Wrapper
 export async function actionWrapper<T>(
   actionFn: () => Promise<ActionResponse<T>>

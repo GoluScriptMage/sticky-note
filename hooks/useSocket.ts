@@ -47,8 +47,6 @@ export const useSocket = (
       console.log("Connected to socket server");
     });
 
-    
-
     // Step 2: Telling server to join Room
     socketRef.current?.emit("join_room", data);
 
@@ -71,11 +69,14 @@ export const useSocket = (
     });
 
     // For Mouse updates
-    socket?.on("mouse_update", (data) => {
-      if (!isUserNameSavedRef.current) return;
-      console.log(`🖱️ Mouse Update Received:`, data);
-      updateOtherUsers(data.userId, { x: data.x, y: data.y });
-    });
+    socket?.on(
+      "mouse_update",
+      (data: DataPayload & { x: number; y: number }) => {
+        if (!isUserNameSavedRef.current) return;
+        console.log(`🖱️ Mouse Update Received:`, data);
+        updateOtherUsers(data.userId, { x: data.x, y: data.y });
+      }
+    );
 
     // User Left
     socket?.on("user_left", (data: DataPayload) => {

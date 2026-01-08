@@ -1,0 +1,32 @@
+{
+  // Use the built-in VS Code version of TS to avoid node_modules issues
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.validate.enable": true,
+  "javascript.validate.enable": true,
+
+  // Formatting & Cleanliness
+  "typescript.reportStyleChecksAsWarnings": false,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+
+  // Ensure errors show up in the "Problems" tab and via Error Lens
+  "problems.decorations.enabled": true,
+  "errorLens.enabled": true,
+  "errorLens.codeLensEnabled": false,
+  "errorLens.enabledDiagnosticLevels": ["error"],
+  "errorLens.fontStyle": "italic",
+  "errorLens.fontSizeOffset": -2,
+  "errorLens.messageTemplate": "$message",
+  "editor.showUnused": false,
+  "editor.hover.enabled": true,
+
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  }
+}
