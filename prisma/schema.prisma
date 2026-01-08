@@ -21,6 +21,8 @@ model User {
   notes Note[]
   rooms Room[] @relation("RoomUsers")
   ownedRooms Room[] @relation("RoomOwner")
+
+  @@index([id, clerkId])
 }
 
 model Room {
@@ -34,6 +36,9 @@ model Room {
   // Relations
   notes Note[]
   users User[]  @relation("RoomUsers")
+
+  @@index([id])
+  @@index([ownerId])
 }
 
 model Note {
@@ -55,4 +60,9 @@ model Note {
 
   roomId String
   room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+
+  @@index([id])
+  @@index([roomId, createdBy])
+  @@index([userId])
 }

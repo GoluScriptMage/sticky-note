@@ -127,3 +127,4 @@ the steps i thought are these correct me if i am seems WRONG
   -> After doing the refratoring and thinking the socket i will do define the actions and the flow 
   -> after this the implementation 
   -> code testing
+  What is TCP protocol and why is widely used
