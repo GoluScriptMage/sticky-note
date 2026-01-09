@@ -36,7 +36,7 @@ export interface StickyStoreActions {
 
   // User Actions
   updateUserData: (userName: string, roomId: string) => void;
-  updateOtherUser: (userId: string, data: RemoteCursor) => void;
+  updateOtherUser: (userId: string, data: Partial<RemoteCursor>) => void;
   removeOtherUser: (userId: string) => void;
 
   // Dev Test

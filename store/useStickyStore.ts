@@ -57,30 +57,6 @@ export const useStickyStore = create<StickyStore>()(
         }));
       },
 
-      //update other users postions and data
-      updateOtherUsers: (userId: string, data: RemoteCursor) => {
-        // Find the current users and create a new otherUsers object with the updated entry
-        console.log("UserName from the Socket ", data.userName);
-        set((state) => {
-          const newOtherUsers = {
-            ...state.otherUsers,
-            [userId]: { ...(state.otherUsers[userId] || {}), ...data },
-          };
-          return { otherUsers: newOtherUsers };
-        });
-      },
-
-      deleteOtherUsers: (userId: string) => {
-        // Find current user delte it
-        const newData: RemoteCursors = { ...get().otherUsers };
-
-        delete newData[userId];
-
-        set(() => ({
-          otherUsers: { ...newData },
-        }));
-      },
-
       // Update notes array
       addNote: (newNote: StickyNote) => {
         set((state) => ({
@@ -117,7 +93,7 @@ export const useStickyStore = create<StickyStore>()(
       },
 
       // Alias for type compatibility
-      updateOtherUser: (userId: string, data: RemoteCursor) => {
+      updateOtherUser: (userId: string, data: Partial<RemoteCursor>) => {
         set((state) => {
           const newOtherUsers = {
             ...state.otherUsers,

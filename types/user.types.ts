@@ -16,6 +16,7 @@ export interface UserData {
 
 // Other user cursor data structure + position for the cursors
 export interface RemoteCursor extends Position {
+  userId: string;
   userName: string;
   cursorColor: string; // Hex color code for the cursor
 }

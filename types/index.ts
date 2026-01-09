@@ -18,6 +18,8 @@ export type {
   ClientToServerEvents,
   ServerToClientEvents,
   TypedSocket,
+  UserJoinedPayload,
+  UserLeftPayload
 } from "./socket.types";
 
 export type {

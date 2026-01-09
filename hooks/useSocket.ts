@@ -3,26 +3,28 @@ import { io, Socket } from "socket.io-client";
 import {
   ServerToClientEvents,
   ClientToServerEvents,
-  DataPayload,
-} from "../types/socket.types";
+  UserPayload,
+  CursorPayload,
+  UserJoinedPayload,
+  UserLeftPayload,
+} from "@/types/index";
 import { useShallow } from "zustand/shallow";
 import { useStickyStore } from "../store/useStickyStore";
 import { toast } from "sonner";
+import type { User } from "@clerk/nextjs/dist/types/server";
 
 export const useSocket = (
-  userId: string,
-  roomId: string,
-  userName: string
+  userPayload: UserPayload
 ): RefObject<Socket<ServerToClientEvents, ClientToServerEvents> | null> => {
   const socketRef = useRef<Socket<
     ServerToClientEvents,
     ClientToServerEvents
   > | null>(null);
 
-  const { deleteOtherUsers, updateOtherUsers } = useStickyStore(
+  const { removeOtherUser, updateOtherUser } = useStickyStore(
     useShallow((state) => ({
-      deleteOtherUsers: state.deleteOtherUsers,
-      updateOtherUsers: state.updateOtherUsers,
+      updateOtherUser: state.updateOtherUser,
+      removeOtherUser: state.removeOtherUser,
     }))
   );
 
@@ -36,10 +38,11 @@ export const useSocket = (
     );
 
     // Data to send to server
-    const data: DataPayload = {
-      userId,
-      roomId,
-      userName,
+    const data: UserPayload = {
+      userId: userPayload.userId,
+      roomId: userPayload.roomId,
+      userName: userPayload.userName,
+      cursorColor: userPayload.cursorColor,
     };
 
     // Listening for connection success
@@ -54,12 +57,12 @@ export const useSocket = (
     const socket = socketRef.current;
 
     // User Joined
-    socket?.on("user_joined", (data: DataPayload) => {
-      updateOtherUsers(data.userId, {
-        userName: data.userName,
-        color: "#ff4757",
-        x: 0,
-        y: 0,
+    socket?.on("user_joined", (data: UserJoinedPayload) => {
+      updateOtherUser(data.userId, {
+        userId: data.userId,
+        cursorColor: data.cursorColor,
+        x: data.x,
+        y: data.y,
       });
       isUserNameSavedRef.current = true;
       toast.success("User Joined", {
@@ -74,16 +77,16 @@ export const useSocket = (
       (data: { x: number; y: number; userId: string }) => {
         if (!isUserNameSavedRef.current) return;
         console.log(`🖱️ Mouse Update Received:`, data);
-        updateOtherUsers(data.userId, { x: data.x, y: data.y });
+        updateOtherUser(data.userId, { x: data.x, y: data.y });
       }
     );
 
     // User Left
-    socket?.on("user_left", (data: DataPayload) => {
+    socket?.on("user_left", (data: UserLeftPayload) => {
       toast.error("User Left", {
         description: `${data.userName} has left the room`,
       });
-      deleteOtherUsers(data.userId);
+      removeOtherUser(data.userId);
       console.log(`User Left Room: ${data.userName}`);
     });
 
@@ -92,7 +95,7 @@ export const useSocket = (
       socket?.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, roomId, userName]);
+  }, [userPayload.userName, userPayload.roomId, userPayload.userId]);
 
   return socketRef;
 };

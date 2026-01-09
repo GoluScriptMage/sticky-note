@@ -4,47 +4,65 @@
  */
 
 import type { Socket } from "socket.io-client";
+import type { Position, StickyNote } from "@/types/index";
 
 // user payload for data
 export interface UserPayload {
   userId: string;
   userName: string;
   roomId: string;
+  cursorColor: string;
+}
+export interface NoteMovedPayload extends Position {
+  noteId: string;
 }
 
 // Cursor Position payload
-export interface CursorPayload extends UserPayload {
+export interface CursorPayload extends Position {
+  noteId: string;
   userId: string;
+  timeStamp: number;
 }
+
+export type UserJoinedPayload = {
+  userId: string;
+  userName: string;
+  cursorColor: string;
+  x: number;
+  y: number;
+};
+
+export type UserLeftPayload = Omit<UserPayload, "cursorColor">;
 
 // Server to Client Events
 export interface ServerToClientEvents {
-  // User Joined Room
-  user_joined: (data: UserPayload) => void;
+  user_joined: (data: UserJoinedPayload) => void; // When a new user joins
+  user_left: (data: UserLeftPayload) => void; // When a user leaves
+  room_data: (data: Partial<UserPayload>) => void; // Current room data
+  mouse_update: (data: CursorPayload) => void; // Mouse position updates
 
-  // User Left Room
-  user_left: (data: UserPayload) => void;
-
-  // send the current room data
-  room_data: (data: Partial<UserPayload>) => void;
-
-  // Tell others about mouse movements
-  mouse_update: (data: CursorPayload) => void;
+  // Notes Crud Events
+  note_created: (data: StickyNote) => void;
+  note_update: (data: Partial<StickyNote>) => void;
+  note_deleted: (noteId: string) => void;
+  note_moved: (data: NoteMovedPayload) => void;
+  note_confirmed: (noteId: string) => void;
+  note_rollback: (noteId: string) => void; // Rollback note if conflict happens with db and couldn't saved
 }
 
 // Client to server Events
 export interface ClientToServerEvents {
-  // Join Room
-  join_room: (data: UserPayload) => void;
+  join_room: (data: UserPayload) => void; // Join a room
+  leave_room: (data: UserPayload) => void; // Leave a room
+  get_room_data: (data: Partial<UserPayload>) => void; // Get current room data
+  mouse_move: (data: CursorPayload) => void; // Mouse position updates
 
-  // Leave Room
-  leave_room: (data: UserPayload) => void;
-
-  // get the current room Data
-  get_room_data: (data: Partial<UserPayload>) => void;
-
-  // Send mouse updated postions
-  mouse_move: (data: CursorPayload) => void;
+  note_create: (note: StickyNote) => void;
+  note_update: (note: StickyNote) => void;
+  note_delete: (noteId: string, roomId: string) => void;
+  note_move: (data: NoteMovedPayload) => void;
+  note_confirm: (noteId: string) => void;
+  note_rollback: (tempId: string) => void; // rollback
 }
 
 export type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
