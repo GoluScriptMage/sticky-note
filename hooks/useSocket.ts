@@ -4,9 +4,9 @@ import {
   ServerToClientEvents,
   ClientToServerEvents,
   DataPayload,
-} from "@/types/socketTypes";
-import { useStickyStore } from "@/store/useStickyStore";
+} from "../types/socket.types";
 import { useShallow } from "zustand/shallow";
+import { useStickyStore } from "../store/useStickyStore";
 import { toast } from "sonner";
 
 export const useSocket = (
@@ -71,7 +71,7 @@ export const useSocket = (
     // For Mouse updates
     socket?.on(
       "mouse_update",
-      (data: DataPayload & { x: number; y: number }) => {
+      (data: { x: number; y: number; userId: string }) => {
         if (!isUserNameSavedRef.current) return;
         console.log(`🖱️ Mouse Update Received:`, data);
         updateOtherUsers(data.userId, { x: data.x, y: data.y });

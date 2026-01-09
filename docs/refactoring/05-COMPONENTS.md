@@ -1,649 +1,467 @@
-# 🧩 Phase 5: Component Extraction
+# 05 - Components Refactoring
 
-> **Time**: ~2 hours  
-> **Priority**: HIGH - This is where you make code readable  
-> **Difficulty**: Medium
+## 🎯 Goal
 
----
+Break down the 322-line `page.tsx` into small, focused components under 100 lines each.
 
-## 📋 Overview
+**Why?**
 
-Your page files are way too long:
-
-- `dashboard/page.tsx` - **291 lines** (target: < 50)
-- `room/[id]/page.tsx` - **322 lines** (target: < 50)
-- `(home)/page.tsx` - **197 lines** (target: < 50)
-
-The goal: **Extract components** so pages only compose them together.
+- Easier to understand (each file does ONE thing)
+- Easier to test
+- Easier to modify without breaking other things
+- Better performance (smaller components = more targeted re-renders)
 
 ---
 
-## 🎯 The 100-Line Rule
+## Current Problem: God Component
 
-Every file should be under **100 lines**. If it's longer:
+Your `page.tsx` currently handles:
 
-1. **Extract a component** → `_components/ComponentName.tsx`
-2. **Extract a hook** → `hooks/useHookName.ts`
-3. **Extract utilities** → `lib/utils/utilName.ts`
+1. Canvas transformation (zoom, pan)
+2. Note dragging
+3. Mouse position tracking
+4. Socket communication
+5. UI rendering (header, canvas, notes, cursors, form, zoom controls)
+6. Event handlers (click, double-click, mouse move)
+7. Loading states
+
+**That's at least 7 different responsibilities in ONE file!**
 
 ---
 
-## 📁 Component Organization
+## The Solution: Component Decomposition
+
+### New Structure:
 
 ```
-app/
-├── dashboard/
-│   ├── page.tsx              # < 50 lines - just composition
-│   └── _components/          # Page-specific components
-│       ├── DashboardHeader.tsx
-│       ├── RoomSearch.tsx
-│       ├── CreateRoomCard.tsx
-│       ├── RecentRooms.tsx
-│       ├── UserStatus.tsx
-│       └── TipsCard.tsx
+app/room/[id]/
+├── page.tsx                    # ~80 lines - Orchestration only
+├── layout.tsx                  # Room-level layout
 │
-├── room/
-│   └── [id]/
-│       ├── page.tsx          # < 50 lines
-│       └── _components/
-│           ├── RoomHeader.tsx
-│           ├── Canvas.tsx
-│           ├── NotesLayer.tsx
-│           ├── CursorsLayer.tsx
-│           ├── StickyNote.tsx
-│           ├── Cursor.tsx
-│           ├── NoteForm.tsx
-│           └── ZoomControls.tsx
+├── components/
+│   ├── RoomHeader.tsx          # ~50 lines
+│   ├── Canvas.tsx              # ~60 lines
+│   ├── CanvasBackground.tsx    # ~30 lines
+│   ├── StickyNote.tsx          # (already exists, refine)
+│   ├── NoteForm.tsx            # (already exists, keep)
+│   ├── Cursor.tsx              # (already exists, keep)
+│   └── ZoomControls.tsx        # (already exists, keep)
 │
-└── (home)/
-    ├── page.tsx              # < 50 lines
-    └── _components/
-        ├── Hero.tsx
-        ├── FeatureCards.tsx
-        ├── UserNameForm.tsx
-        └── CTAButtons.tsx
+├── hooks/
+│   ├── useNoteDrag.ts          # ~70 lines - Drag logic
+│   ├── useMouseTracking.ts     # ~40 lines - Share cursor position
+│   └── useRoomSocket.ts        # Room-specific socket setup
+│
+└── types.ts                    # Room-specific types
 ```
-
-### Why `_components/`?
-
-The underscore prefix:
-
-1. **Next.js ignores it** - Won't create routes
-2. **Clear convention** - Shows these are private to the route
-3. **Colocation** - Keeps related files together
 
 ---
 
-## 📝 Step-by-Step: Dashboard Page
+## Step 1: Extract `RoomHeader.tsx`
 
-### Current State (291 lines!)
+### Why This Component?
 
-The page currently handles:
+The header is completely independent. It doesn't need canvas state.
 
-- Header with back button
-- Search/join room form
-- User status display
-- Create room card
-- Tips section
-- Recent rooms list
-
-### Target State (~40 lines)
+### Create the file:
 
 ```tsx
-// app/dashboard/page.tsx
-import { DashboardHeader } from "./_components/DashboardHeader";
-import { RoomSearchCard } from "./_components/RoomSearchCard";
-import { UserStatusCard } from "./_components/UserStatusCard";
-import { QuickStartCard } from "./_components/QuickStartCard";
-import { TipsCard } from "./_components/TipsCard";
-import { RecentRoomsCard } from "./_components/RecentRoomsCard";
+// app/room/[id]/components/RoomHeader.tsx
+"use client";
 
-export default function DashboardPage() {
+import { UserButton } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+
+interface RoomHeaderProps {
+  /** Number of users in the room (including current user) */
+  userCount: number;
+}
+
+/**
+ * Room header with navigation and user info
+ * Fixed position at top of screen
+ */
+export function RoomHeader({ userCount }: RoomHeaderProps) {
+  const router = useRouter();
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
-        <DashboardHeader />
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2.5 sm:px-6 sm:py-4 bg-white/95 backdrop-blur-sm border-b border-gray-100 pointer-events-none">
+      {/* Left side - Navigation & Logo */}
+      <div className="flex items-center gap-2 sm:gap-4 pointer-events-auto">
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all active:scale-95"
+          title="Back to Dashboard"
+          aria-label="Go back to dashboard"
+        >
+          <BackIcon />
+        </button>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            <RoomSearchCard />
-            <UserStatusCard />
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <QuickStartCard />
-            <TipsCard />
-            <RecentRoomsCard />
-          </div>
-        </div>
+        <h1 className="text-base sm:text-xl font-bold text-gray-900 tracking-tight">
+          Sticky<span className="text-amber-600">Verse</span>
+        </h1>
       </div>
-    </div>
+
+      {/* Right side - User count & Profile */}
+      <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+        <div className="bg-gray-900 text-white text-[10px] sm:text-xs px-2.5 py-1.5 sm:px-3 rounded-full font-medium shadow-md">
+          👥 {userCount}
+        </div>
+        <UserButton afterSignOutUrl="/" />
+      </div>
+    </header>
+  );
+}
+
+// Extracted icon component
+function BackIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
   );
 }
 ```
 
+### What We Did:
+
+1. **Extracted** header JSX from page.tsx
+2. **Made it a controlled component** - receives `userCount` as prop
+3. **Extracted** the SVG icon into a separate function
+4. **Added** TypeScript interface for props
+5. **Added** accessibility attribute (`aria-label`)
+
 ---
 
-### Step 1: Create `_components/DashboardHeader.tsx`
+## Step 2: Extract `CanvasBackground.tsx`
+
+### Why This Component?
+
+The animated dot pattern background is purely visual, no interaction logic.
 
 ```tsx
+// app/room/[id]/components/CanvasBackground.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import { motion, type MotionValue } from "framer-motion";
 
-export function DashboardHeader() {
-  const router = useRouter();
+interface CanvasBackgroundProps {
+  /** Background size motion value (reactive to zoom) */
+  bgSize: MotionValue<string>;
+  /** Background position motion value (reactive to pan) */
+  bgPosition: MotionValue<string>;
+}
 
+/**
+ * Animated dot grid background for the canvas
+ * Responds to zoom and pan transformations
+ */
+export function CanvasBackground({
+  bgSize,
+  bgPosition,
+}: CanvasBackgroundProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8 sm:mb-12"
-    >
-      <div className="space-y-1">
-        <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-gray-400 font-medium">
-          Dashboard
-        </p>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-          Your Workspace
-        </h1>
-        <p className="text-sm sm:text-base text-gray-500">
-          Create, search, or rejoin existing rooms
-        </p>
-      </div>
-
-      <button
-        onClick={() => router.push("/")}
-        className="flex items-center gap-2 self-start sm:self-auto rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:shadow hover:bg-gray-50 transition-all active:scale-95"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span className="hidden sm:inline">Back to home</span>
-        <span className="sm:hidden">Home</span>
-      </button>
-    </motion.div>
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)",
+        backgroundSize: bgSize,
+        backgroundPosition: bgPosition,
+      }}
+    />
   );
 }
 ```
 
-**Lines: ~45** ✅
+### Why It's Separate:
+
+- **Single responsibility** - Just draws dots
+- **Reusable** - Could be used in other canvas contexts
+- **Testable** - Easy to test in isolation
 
 ---
 
-### Step 2: Create `_components/RoomSearchCard.tsx`
+## Step 3: Extract `useNoteDrag.ts` Hook
+
+### Why This Hook?
+
+Note dragging is complex logic that shouldn't clutter the page component.
 
 ```tsx
+// app/room/[id]/hooks/useNoteDrag.ts
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
-import { Search, ArrowRight } from "lucide-react";
-import { verifyRoom } from "@/lib/actions/room.actions";
-import { toast } from "sonner";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useStickyStore } from "@/store/useStickyStore";
+import { useShallow } from "zustand/shallow";
 
-export function RoomSearchCard() {
-  const router = useRouter();
-  const { userId } = useAuth();
-  const [roomInput, setRoomInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+interface UseNoteDragOptions {
+  /** Function to convert screen coordinates to world coordinates */
+  screenToWorld: (screenX: number, screenY: number) => { x: number; y: number };
+}
 
-  const handleJoinRoom = async () => {
-    if (!userId) {
-      router.push("/sign-in");
-      return;
-    }
+interface UseNoteDragReturn {
+  /** Currently dragging note ID, or null */
+  draggingNoteId: string | null;
+  /** Call this when user starts dragging a note */
+  handleDragStart: (
+    noteId: string,
+    e: React.MouseEvent | React.TouchEvent,
+    noteX: number,
+    noteY: number
+  ) => void;
+}
 
-    if (!roomInput.trim()) {
-      toast.error("Please enter a room ID");
-      return;
-    }
+/**
+ * Hook to handle note dragging with mouse and touch support
+ *
+ * @example
+ * const { draggingNoteId, handleDragStart } = useNoteDrag({ screenToWorld });
+ */
+export function useNoteDrag({
+  screenToWorld,
+}: UseNoteDragOptions): UseNoteDragReturn {
+  const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
+  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-    setIsLoading(true);
+  const { updateNote } = useStickyStore(
+    useShallow((state) => ({
+      updateNote: state.updateNote,
+    }))
+  );
 
-    const result = await verifyRoom({ roomId: roomInput });
+  // Handle mouse/touch move during drag
+  useEffect(() => {
+    if (!draggingNoteId) return;
 
-    if (result.success) {
-      router.push(`/room/${roomInput}`);
-    } else {
-      toast.error("Room not found", {
-        description: "Please check the room ID and try again.",
-      });
-      setIsLoading(false);
-    }
+    const handleMove = (clientX: number, clientY: number) => {
+      const worldPos = screenToWorld(clientX, clientY);
+      const newX = worldPos.x - dragOffsetRef.current.x;
+      const newY = worldPos.y - dragOffsetRef.current.y;
+      updateNote(draggingNoteId, { x: newX, y: newY });
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      handleMove(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
+
+    const handleEnd = () => {
+      setDraggingNoteId(null);
+      dragOffsetRef.current = { x: 0, y: 0 };
+    };
+
+    // Add listeners
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleEnd);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleEnd);
+    };
+  }, [draggingNoteId, screenToWorld, updateNote]);
+
+  // Start dragging
+  const handleDragStart = useCallback(
+    (
+      noteId: string,
+      e: React.MouseEvent | React.TouchEvent,
+      noteX: number,
+      noteY: number
+    ) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Get client coordinates
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+      setDraggingNoteId(noteId);
+      const clickWorld = screenToWorld(clientX, clientY);
+      dragOffsetRef.current = {
+        x: clickWorld.x - noteX,
+        y: clickWorld.y - noteY,
+      };
+    },
+    [screenToWorld]
+  );
+
+  return {
+    draggingNoteId,
+    handleDragStart,
   };
-
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
-            <Search className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">Find a room</p>
-            <p className="text-sm text-gray-500">
-              Search or enter room ID to join
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="px-5 py-5 sm:px-6">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            placeholder="Enter room ID or search..."
-            value={roomInput}
-            onChange={(e) => setRoomInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleJoinRoom()}
-            className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm outline-none transition-all focus:border-amber-300 focus:bg-white focus:ring-4 focus:ring-amber-100"
-          />
-          <button
-            onClick={handleJoinRoom}
-            disabled={isLoading}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/20 hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-60"
-          >
-            {isLoading ? (
-              "Joining..."
-            ) : (
-              <>
-                <span>Join Room</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 ```
 
-**Lines: ~85** ✅
+### What This Hook Does:
+
+1. **Manages drag state** (`draggingNoteId`)
+2. **Handles mouse move/up events** during drag
+3. **Handles touch move/end events** for mobile
+4. **Updates note position** in the store
+5. **Cleans up event listeners** properly
 
 ---
 
-### Step 3: Create `_components/QuickStartCard.tsx`
+## Step 4: Extract `useMouseTracking.ts` Hook
+
+### Why This Hook?
+
+Mouse position broadcasting to other users is separate from dragging.
 
 ```tsx
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
-import { Sparkles, Plus, Loader2 } from "lucide-react";
-import { createRoom } from "@/lib/actions/room.actions";
-import { toast } from "sonner";
-import { useUserStore } from "@/store/use-user-store";
-
-export function QuickStartCard() {
-  const router = useRouter();
-  const { userId } = useAuth();
-  const currentUser = useUserStore((s) => s.currentUser);
-  const [loading, setLoading] = useState(false);
-
-  const handleCreateRoom = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!userId) {
-      router.push("/sign-in");
-      return;
-    }
-
-    setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const roomName = formData.get("roomName") as string;
-
-    const result = await createRoom({ roomName: roomName || "New Room" });
-
-    if (result.success) {
-      router.push(`/room/${result.data.id}`);
-    } else {
-      toast.error(result.error);
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <p className="font-semibold text-gray-900">Quick Start</p>
-        </div>
-      </div>
-
-      <div className="px-5 py-5">
-        {userId ? (
-          <CreateRoomForm
-            username={currentUser?.userName}
-            loading={loading}
-            onSubmit={handleCreateRoom}
-          />
-        ) : (
-          <SignInPrompt />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Sub-components (could be extracted further if needed)
-
-function CreateRoomForm({
-  username,
-  loading,
-  onSubmit,
-}: {
-  username?: string;
-  loading: boolean;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-lg font-bold text-gray-700">
-          {(username || "A").charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">Welcome back,</p>
-          <p className="font-semibold text-gray-900">{username || "Friend"}</p>
-        </div>
-      </div>
-
-      <form onSubmit={onSubmit} className="space-y-3">
-        <input
-          type="text"
-          name="roomName"
-          placeholder="Enter room name..."
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition-all focus:border-amber-300 focus:bg-white focus:ring-4 focus:ring-amber-100"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-500/25 hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-60"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4" />
-              Create Room
-            </>
-          )}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function SignInPrompt() {
-  const router = useRouter();
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500">Sign in to create or join rooms</p>
-      <div className="flex flex-col gap-3">
-        <button
-          onClick={() => router.push("/sign-in")}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95"
-        >
-          Sign in
-        </button>
-        <button
-          onClick={() => router.push("/sign-up")}
-          className="w-full rounded-xl bg-gray-900 px-4 py-3 font-medium text-white hover:bg-gray-800 transition-all active:scale-95"
-        >
-          Sign up
-        </button>
-      </div>
-    </div>
-  );
-}
-```
-
-**Lines: ~130** - Slightly over, but has 3 sub-components. Could split further.
-
----
-
-## 📝 Step-by-Step: Room Page
-
-### Current State (322 lines!)
-
-The page handles:
-
-- Canvas setup
-- Socket connection
-- Zoom/pan
-- Note dragging
-- Note rendering
-- Cursor rendering
-- Header
-- Zoom controls
-- Note form modal
-
-### Target State (~45 lines)
-
-```tsx
-// app/room/[id]/page.tsx
-"use client";
-
-import { useParams } from "next/navigation";
-import { RoomProvider } from "./_components/RoomProvider";
-import { RoomHeader } from "./_components/RoomHeader";
-import { Canvas } from "./_components/Canvas";
-import { ZoomControls } from "./_components/ZoomControls";
-import { NoteFormModal } from "./_components/NoteFormModal";
-
-export default function RoomPage() {
-  const params = useParams<{ id: string }>();
-
-  return (
-    <RoomProvider roomId={params.id}>
-      <div className="relative h-screen w-screen overflow-hidden bg-gray-50 touch-none">
-        <RoomHeader />
-        <Canvas />
-        <ZoomControls />
-        <NoteFormModal />
-      </div>
-    </RoomProvider>
-  );
-}
-```
-
----
-
-### Step 1: Create `_components/RoomProvider.tsx`
-
-This is a **Context Provider** that handles:
-
-- Socket connection
-- Canvas transform state
-- Current room info
-
-```tsx
-"use client";
-
-import { createContext, useContext, useEffect, type ReactNode } from "react";
-import { useAuth } from "@clerk/nextjs";
-import { useSocket } from "@/hooks/use-socket";
-import {
-  useCanvasTransform,
-  type UseCanvasTransformReturn,
-} from "@/hooks/use-canvas-transform";
-import { useUserStore } from "@/store/use-user-store";
-
-// ============================================
-// TYPES
-// ============================================
-
-interface RoomContextValue {
-  roomId: string;
-  userId: string;
-  canvas: UseCanvasTransformReturn;
-}
-
-interface RoomProviderProps {
-  roomId: string;
-  children: ReactNode;
-}
-
-// ============================================
-// CONTEXT
-// ============================================
-
-const RoomContext = createContext<RoomContextValue | null>(null);
-
-export function useRoom() {
-  const context = useContext(RoomContext);
-  if (!context) {
-    throw new Error("useRoom must be used within RoomProvider");
-  }
-  return context;
-}
-
-// ============================================
-// PROVIDER
-// ============================================
-
-export function RoomProvider({ roomId, children }: RoomProviderProps) {
-  const { userId } = useAuth();
-  const currentUser = useUserStore((s) => s.currentUser);
-  const canvas = useCanvasTransform();
-
-  // Connect to socket
-  const socket = useSocket({
-    roomId,
-    userId: userId || "",
-    userName: currentUser?.userName || "Anonymous",
-    enabled: Boolean(userId),
-  });
-
-  // Guard: Must be authenticated
-  if (!userId) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">
-            Please sign in to access this room
-          </p>
-          <a href="/sign-in" className="text-amber-600 hover:underline">
-            Sign in
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <RoomContext.Provider value={{ roomId, userId, canvas }}>
-      {children}
-    </RoomContext.Provider>
-  );
-}
-```
-
-**Lines: ~75** ✅
-
----
-
-### Step 2: Create `_components/Canvas.tsx`
-
-```tsx
+// app/room/[id]/hooks/useMouseTracking.ts
 "use client";
 
 import { useCallback, useRef } from "react";
-import { motion, useMotionTemplate, useTransform } from "framer-motion";
-import { useRoom } from "./RoomProvider";
-import { NotesLayer } from "./NotesLayer";
-import { CursorsLayer } from "./CursorsLayer";
-import { useNotesStore } from "@/store/use-notes-store";
-import { useUIStore } from "@/store/use-ui-store";
+import type { Socket } from "socket.io-client";
+import type { ServerToClientEvents, ClientToServerEvents } from "@/types";
 
-export function Canvas() {
-  const { canvas } = useRoom();
-  const { springX, springY, springScale, containerRef, screenToWorld } = canvas;
+interface UseMouseTrackingOptions {
+  /** Socket instance for broadcasting */
+  socket: React.RefObject<Socket<
+    ServerToClientEvents,
+    ClientToServerEvents
+  > | null>;
+  /** Convert screen to world coordinates */
+  screenToWorld: (screenX: number, screenY: number) => { x: number; y: number };
+  /** Throttle delay in ms (default: 50) */
+  throttleMs?: number;
+}
 
-  const openNoteForm = useUIStore((s) => s.openNoteForm);
-  const selectNote = useNotesStore((s) => s.selectNote);
+/**
+ * Hook to broadcast mouse position to other users
+ * Throttled to prevent overwhelming the socket
+ */
+export function useMouseTracking({
+  socket,
+  screenToWorld,
+  throttleMs = 50,
+}: UseMouseTrackingOptions) {
+  const lastBroadcastRef = useRef(0);
 
-  const throttleRef = useRef(0);
-  const THROTTLE_MS = 50;
-
-  // Background dots pattern
-  const bgSize = useTransform(springScale, (s: number) => {
-    const size = Math.max(15, 20 * s);
-    return `${size}px ${size}px`;
-  });
-  const bgPosition = useMotionTemplate`${springX}px ${springY}px`;
-
-  // Handle double-click to create note
-  const handleDoubleClick = useCallback(
+  const trackMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      const target = e.target as HTMLElement;
+      const now = Date.now();
+      if (now - lastBroadcastRef.current < throttleMs) return;
+      lastBroadcastRef.current = now;
 
-      // If clicking on a note, select it instead
-      if (target.closest(".note-card")) {
-        const noteId = target
-          .closest(".note-card")
-          ?.getAttribute("data-note-id");
-        if (noteId) selectNote(noteId);
-        return;
-      }
-
-      // Otherwise, open form at click position
       const worldPos = screenToWorld(e.clientX, e.clientY);
-      openNoteForm({ x: worldPos.x, y: worldPos.y });
+      socket.current?.emit("mouse_move", { x: worldPos.x, y: worldPos.y });
     },
-    [screenToWorld, openNoteForm, selectNote]
+    [screenToWorld, socket, throttleMs]
   );
 
-  // Handle click to deselect
-  const handleClick = useCallback(() => {
-    selectNote(null);
-  }, [selectNote]);
+  return { trackMouseMove };
+}
+```
 
-  // Handle mouse move for cursor broadcast
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const now = Date.now();
-    if (now - throttleRef.current < THROTTLE_MS) return;
-    throttleRef.current = now;
+### What's Better:
 
-    // TODO: Emit cursor position via socket
-  }, []);
+1. **Single responsibility** - Only handles mouse tracking
+2. **Configurable** - Throttle delay can be changed
+3. **Reusable** - Could be used anywhere that needs mouse broadcasting
 
+---
+
+## Step 5: Create `Canvas.tsx` Component
+
+### Why This Component?
+
+Combines canvas-related rendering into one cohesive piece.
+
+```tsx
+// app/room/[id]/components/Canvas.tsx
+"use client";
+
+import { motion, type MotionValue } from "framer-motion";
+import { CanvasBackground } from "./CanvasBackground";
+import StickyNoteComponent from "./StickyNote";
+import Cursor from "./Cursor";
+import type { StickyNote, RemoteCursors } from "@/types";
+
+interface CanvasProps {
+  // Transform values
+  containerRef: React.RefObject<HTMLDivElement>;
+  springX: MotionValue<number>;
+  springY: MotionValue<number>;
+  springScale: MotionValue<number>;
+  bgSize: MotionValue<string>;
+  bgPosition: MotionValue<string>;
+
+  // Data
+  notes: StickyNote[];
+  remoteCursors: RemoteCursors;
+
+  // State
+  selectedNoteId: string | null;
+  draggingNoteId: string | null;
+
+  // Handlers
+  onDoubleClick: (e: React.MouseEvent) => void;
+  onClick: () => void;
+  onMouseMove: (e: React.MouseEvent) => void;
+  onNoteDragStart: (
+    noteId: string,
+    e: React.MouseEvent,
+    x: number,
+    y: number
+  ) => void;
+}
+
+/**
+ * Main canvas area with notes and remote cursors
+ */
+export function Canvas({
+  containerRef,
+  springX,
+  springY,
+  springScale,
+  bgSize,
+  bgPosition,
+  notes,
+  remoteCursors,
+  selectedNoteId,
+  draggingNoteId,
+  onDoubleClick,
+  onClick,
+  onMouseMove,
+  onNoteDragStart,
+}: CanvasProps) {
   return (
     <>
-      {/* Background pattern */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)",
-          backgroundSize: bgSize,
-          backgroundPosition: bgPosition,
-        }}
-      />
+      {/* Animated Background */}
+      <CanvasBackground bgSize={bgSize} bgPosition={bgPosition} />
 
-      {/* Canvas container */}
+      {/* Canvas Container */}
       <div
         ref={containerRef}
         className="absolute inset-0"
-        onDoubleClick={handleDoubleClick}
-        onClick={handleClick}
-        onMouseMove={handleMouseMove}
+        onDoubleClick={onDoubleClick}
+        onClick={onClick}
+        onMouseMove={onMouseMove}
       >
-        {/* Transformed content */}
+        {/* Transformed Content */}
         <motion.div
           className="absolute origin-top-left"
           style={{
@@ -654,312 +472,346 @@ export function Canvas() {
             height: "10000px",
           }}
         >
-          {/* Welcome message */}
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 text-center select-none pointer-events-none">
-            <h2 className="text-4xl font-bold text-amber-900/80 tracking-tight">
-              Welcome to StickyVerse
-            </h2>
-            <p className="text-gray-500 mt-2">
-              Double-click anywhere to create a note
-            </p>
-          </div>
+          {/* Welcome Message */}
+          <WelcomeMessage />
 
-          <NotesLayer />
-          <CursorsLayer />
+          {/* Sticky Notes */}
+          {notes.map((note) => (
+            <StickyNoteComponent
+              key={note.id}
+              {...note}
+              isDragging={draggingNoteId === note.id}
+              showButtons={selectedNoteId === note.id && !draggingNoteId}
+              onDragStart={onNoteDragStart}
+            />
+          ))}
+
+          {/* Remote Cursors */}
+          {Object.entries(remoteCursors).map(([userId, cursor]) => (
+            <Cursor
+              key={userId}
+              x={cursor.x}
+              y={cursor.y}
+              userName={cursor.userName}
+              color={cursor.color}
+            />
+          ))}
         </motion.div>
       </div>
     </>
   );
 }
-```
 
-**Lines: ~95** ✅
-
----
-
-### Step 3: Create `_components/NotesLayer.tsx`
-
-```tsx
-"use client";
-
-import { useNotesStore } from "@/store/use-notes-store";
-import { useUIStore, useDragState } from "@/store/use-ui-store";
-import { StickyNoteCard } from "./StickyNoteCard";
-
-export function NotesLayer() {
-  const notes = useNotesStore((s) => s.notes);
-  const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
-  const { draggingNoteId } = useDragState();
-
+// Extracted welcome message
+function WelcomeMessage() {
   return (
-    <>
-      {notes.map((note) => (
-        <StickyNoteCard
-          key={note.id}
-          note={note}
-          isSelected={selectedNoteId === note.id}
-          isDragging={draggingNoteId === note.id}
-        />
-      ))}
-    </>
+    <div className="absolute top-20 left-1/2 -translate-x-1/2 text-center select-none pointer-events-none">
+      <h2 className="text-4xl font-bold text-amber-900/80 tracking-tight whitespace-nowrap">
+        Welcome to Sticky (-_-) Verse
+      </h2>
+      <p className="text-gray-500 mt-2">
+        Double-click anywhere to create a note
+      </p>
+    </div>
   );
 }
 ```
 
-**Lines: ~25** ✅
-
 ---
 
-### Step 4: Create `_components/StickyNoteCard.tsx`
+## Step 6: Refactored `page.tsx`
+
+Now the page becomes a simple orchestrator:
 
 ```tsx
+// app/room/[id]/page.tsx
 "use client";
 
-import { useCallback } from "react";
-import { motion } from "framer-motion";
-import { Pencil, Trash2 } from "lucide-react";
-import type { StickyNote } from "@/types";
-import { useNotesStore } from "@/store/use-notes-store";
-import { useUIStore } from "@/store/use-ui-store";
-import { useRoom } from "./RoomProvider";
-import { NOTE_COLORS, getColorStyle } from "@/constants/theme";
+import { useCallback, useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { useShallow } from "zustand/shallow";
+import { useMotionTemplate, useTransform } from "framer-motion";
 
-// ============================================
-// TYPES
-// ============================================
+// Store & Hooks
+import { useStickyStore } from "@/store/useStickyStore";
+import { useSocket } from "@/hooks/useSocket";
+import { useCanvasTransform } from "@/hooks/useCanvasTransform";
+import { useNoteDrag } from "./hooks/useNoteDrag";
+import { useMouseTracking } from "./hooks/useMouseTracking";
 
-interface StickyNoteCardProps {
-  note: StickyNote;
-  isSelected: boolean;
-  isDragging: boolean;
-}
+// Components
+import { RoomHeader } from "./components/RoomHeader";
+import { Canvas } from "./components/Canvas";
+import { ZoomControls } from "./components/ZoomControls";
+import NoteForm from "./components/NoteForm";
 
-// ============================================
-// COMPONENT
-// ============================================
+export default function RoomPage() {
+  const params = useParams<{ id: string }>();
+  const { userId } = useAuth();
+  const roomId = params.id;
 
-export function StickyNoteCard({
-  note,
-  isSelected,
-  isDragging,
-}: StickyNoteCardProps) {
-  const { canvas } = useRoom();
-  const { screenToWorld } = canvas;
-
-  const deleteNote = useNotesStore((s) => s.deleteNote);
-  const updateNote = useNotesStore((s) => s.updateNote);
-  const openEditForm = useUIStore((s) => s.openEditForm);
-  const setDraggingNote = useUIStore((s) => s.setDraggingNote);
-
-  const colorStyle = getColorStyle(note.noteName + (note.createdBy || ""));
-  const rotation = getRotation(note.id);
-
-  // Drag handlers
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (isSelected) return; // Allow button clicks when selected
-      e.preventDefault();
-      setDraggingNote(note.id);
-      // Store offset for drag calculation
-    },
-    [isSelected, setDraggingNote, note.id]
-  );
-
-  const handleEdit = useCallback(() => {
-    openEditForm(note);
-  }, [openEditForm, note]);
-
-  const handleDelete = useCallback(() => {
-    deleteNote(note.id);
-    // TODO: Also delete from server
-  }, [deleteNote, note.id]);
-
-  return (
-    <motion.div
-      className="note-card absolute cursor-grab active:cursor-grabbing"
-      data-note-id={note.id}
-      style={{ left: note.x, top: note.y }}
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{
-        opacity: 1,
-        scale: isDragging ? 1.05 : 1,
-        rotate: isDragging ? 0 : rotation,
-        zIndex: isDragging ? 1000 : isSelected ? 100 : 1,
-      }}
-      onMouseDown={handleMouseDown}
-    >
-      <div
-        className={`
-          w-[260px] min-h-[160px] rounded-xl border-2 p-4
-          ${colorStyle.bg} ${colorStyle.border}
-          shadow-lg ${isDragging ? "shadow-2xl" : ""}
-          transition-shadow
-        `}
-      >
-        {/* Header */}
-        <div
-          className={`-mx-4 -mt-4 px-4 py-2 rounded-t-lg ${colorStyle.header}`}
-        >
-          <h3 className={`font-semibold truncate ${colorStyle.text}`}>
-            {note.noteName}
-          </h3>
-        </div>
-
-        {/* Content */}
-        <p className="mt-3 text-sm text-gray-700 whitespace-pre-wrap line-clamp-6">
-          {note.content}
-        </p>
-
-        {/* Footer */}
-        <div className="mt-3 pt-2 border-t border-current/10 flex items-center justify-between">
-          <span className="text-xs text-gray-500">
-            {note.createdBy || "Anonymous"}
-          </span>
-
-          {/* Action buttons - only show when selected */}
-          {isSelected && (
-            <div className="flex gap-1">
-              <button
-                onClick={handleEdit}
-                className="p-1.5 rounded-lg hover:bg-white/50 transition-colors"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleDelete}
-                className="p-1.5 rounded-lg hover:bg-red-100 text-red-600 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// ============================================
-// HELPERS
-// ============================================
-
-function getRotation(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  // Auth check
+  if (!userId) {
+    throw new Error("Not authenticated");
   }
-  return ((Math.abs(hash) % 5) - 2) * 1.5; // -3 to +3 degrees
+
+  // Store
+  const {
+    notes,
+    userData,
+    remoteCursors,
+    isFormOpen,
+    formPosition,
+    selectedNoteId,
+    selectNote,
+    openNoteForm,
+    closeNoteForm,
+    loadDummyData,
+  } = useStickyStore(
+    useShallow((state) => ({
+      notes: state.notes,
+      userData: state.userData,
+      remoteCursors: state.remoteCursors,
+      isFormOpen: state.isFormOpen,
+      formPosition: state.formPosition,
+      selectedNoteId: state.selectedNoteId,
+      selectNote: state.selectNote,
+      openNoteForm: state.openNoteForm,
+      closeNoteForm: state.closeNoteForm,
+      loadDummyData: state.loadDummyData,
+    }))
+  );
+
+  // Canvas transform
+  const {
+    springX,
+    springY,
+    springScale,
+    containerRef,
+    zoomIn,
+    zoomOut,
+    resetView,
+    screenToWorld,
+    x,
+    y,
+    scale,
+  } = useCanvasTransform();
+
+  // Socket connection
+  const socket = useSocket(roomId, userId, userData?.userName || "");
+
+  // Note dragging
+  const { draggingNoteId, handleDragStart } = useNoteDrag({ screenToWorld });
+
+  // Mouse tracking for other users
+  const { trackMouseMove } = useMouseTracking({ socket, screenToWorld });
+
+  // Current zoom level (for display)
+  const [currentScale, setCurrentScale] = useState(1);
+  useEffect(() => {
+    return springScale.on("change", setCurrentScale);
+  }, [springScale]);
+
+  // Background animation values
+  const bgSize = useTransform(springScale, (s) => {
+    const size = Math.max(15, 20 * s);
+    return `${size}px ${size}px`;
+  });
+  const bgPosition = useMotionTemplate`${springX}px ${springY}px`;
+
+  // Load demo data
+  useEffect(() => {
+    loadDummyData();
+  }, [loadDummyData]);
+
+  // Handlers
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const worldPos = screenToWorld(e.clientX, e.clientY);
+      openNoteForm(worldPos);
+    },
+    [screenToWorld, openNoteForm]
+  );
+
+  const handleCanvasClick = useCallback(() => {
+    if (!draggingNoteId) {
+      selectNote(null);
+    }
+  }, [draggingNoteId, selectNote]);
+
+  const fitToScreen = useCallback(() => {
+    if (typeof window === "undefined") return;
+    x.set(window.innerWidth / 2 - 200);
+    y.set(window.innerHeight / 2 - 100);
+    scale.set(0.8);
+  }, [x, y, scale]);
+
+  // Loading state
+  if (!userData) {
+    return <LoadingState />;
+  }
+
+  return (
+    <div className="relative h-screen w-screen overflow-hidden bg-gray-50 touch-none">
+      <RoomHeader userCount={Object.keys(remoteCursors).length + 1} />
+
+      <ZoomControls
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={resetView}
+        onFitToScreen={fitToScreen}
+        scale={currentScale}
+      />
+
+      <Canvas
+        containerRef={containerRef}
+        springX={springX}
+        springY={springY}
+        springScale={springScale}
+        bgSize={bgSize}
+        bgPosition={bgPosition}
+        notes={notes}
+        remoteCursors={remoteCursors}
+        selectedNoteId={selectedNoteId}
+        draggingNoteId={draggingNoteId}
+        onDoubleClick={handleDoubleClick}
+        onClick={handleCanvasClick}
+        onMouseMove={trackMouseMove}
+        onNoteDragStart={handleDragStart}
+      />
+
+      {/* Note Form Modal */}
+      {isFormOpen && formPosition && (
+        <NoteFormModal onClose={closeNoteForm}>
+          <NoteForm />
+        </NoteFormModal>
+      )}
+    </div>
+  );
 }
-```
 
-**Lines: ~120** - Slightly over, but reasonable for a complex component.
-
----
-
-## 🧠 Component Design Principles
-
-### 1. Props Down, Events Up
-
-```tsx
-// ❌ Bad - Child modifies parent state directly
-function Child() {
-  const setParentState = useParentStore((s) => s.setState);
-  return <button onClick={() => setParentState({ value: 1 })} />;
+// Simple loading component
+function LoadingState() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <p className="text-gray-500 mb-4">Please set up your identity first.</p>
+        <a href="/" className="px-6 py-2 bg-black text-white rounded-lg">
+          Go to Home
+        </a>
+      </div>
+    </div>
+  );
 }
 
-// ✅ Good - Child emits events, parent handles
-function Child({ onValueChange }: { onValueChange: (v: number) => void }) {
-  return <button onClick={() => onValueChange(1)} />;
-}
-```
-
-### 2. Single Responsibility
-
-```tsx
-// ❌ Bad - One component does everything
-function Dashboard() {
-  // fetching
-  // form handling
-  // list rendering
-  // modal management
-  // 300+ lines...
-}
-
-// ✅ Good - Separate concerns
-function Dashboard() {
+// Modal wrapper for note form
+function NoteFormModal({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
   return (
     <>
-      <DashboardHeader />
-      <SearchSection />
-      <RoomsList />
-      <CreateModal />
+      <div className="fixed inset-0 bg-black/20 z-[9998]" onClick={onClose} />
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
+        <div className="pointer-events-auto">{children}</div>
+      </div>
     </>
   );
 }
 ```
 
-### 3. Composition Over Configuration
+---
 
-```tsx
-// ❌ Bad - Tons of props
-<Card
-  title="Hello"
-  subtitle="World"
-  icon={<Star />}
-  actions={[...]}
-  variant="primary"
-  size="large"
-  // ... 20 more props
-/>
+## 📊 Before vs After Comparison
 
-// ✅ Good - Composition
-<Card>
-  <Card.Header>
-    <Card.Icon><Star /></Card.Icon>
-    <Card.Title>Hello</Card.Title>
-    <Card.Subtitle>World</Card.Subtitle>
-  </Card.Header>
-  <Card.Actions>
-    <Button>Save</Button>
-  </Card.Actions>
-</Card>
+| Metric                   | Before | After             |
+| ------------------------ | ------ | ----------------- |
+| `page.tsx` lines         | 322    | ~100              |
+| Number of files          | 1      | 6                 |
+| Responsibilities in page | 7+     | 1 (orchestration) |
+| Testable units           | 1      | 6                 |
+| Reusable pieces          | 0      | 4+                |
+
+---
+
+## 🎓 What You Learned
+
+### 1. Component Extraction Rules
+
+**Extract when:**
+
+- Component is > 100 lines
+- Component has its own state
+- Component could be reused
+- Component has a clear single purpose
+
+**Keep inline when:**
+
+- It's just a few lines of JSX
+- It's tightly coupled to parent
+- It's only used once and simple
+
+### 2. Hook Extraction Rules
+
+**Extract when:**
+
+- Logic is > 20 lines
+- Logic involves useState/useEffect
+- Logic could be reused
+- Logic has clear input/output
+
+### 3. Props Interface Design
+
+```typescript
+// ❌ Too many unrelated props
+interface CanvasProps {
+  notes: Note[];
+  users: User[];
+  isLoading: boolean;
+  onSave: () => void;
+  theme: "light" | "dark";
+  language: string;
+}
+
+// ✅ Grouped by concern
+interface CanvasProps {
+  // Data
+  notes: Note[];
+
+  // State
+  selectedNoteId: string | null;
+
+  // Handlers
+  onNoteSelect: (id: string) => void;
+}
 ```
 
 ---
 
 ## ✅ Verification Checklist
 
-After extracting components:
+After refactoring:
 
-- [ ] Each page file is under 50 lines
-- [ ] Each component file is under 100 lines
-- [ ] Components are in `_components/` folders
-- [ ] No circular imports
-- [ ] All functionality still works
-- [ ] TypeScript has no errors
+```bash
+# 1. All files exist
+ls app/room/[id]/components/
+ls app/room/[id]/hooks/
 
----
+# 2. No TypeScript errors
+npx tsc --noEmit
 
-## 📚 What You Learned
-
-1. **Component Extraction** - How to break down large files
-2. **File Organization** - `_components/` convention
-3. **Context Providers** - Sharing state across components
-4. **Composition** - Building UIs from small pieces
-5. **Single Responsibility** - Each component does one thing
-6. **Props vs State** - When to lift state up
+# 3. Test functionality
+# - Canvas pans and zooms
+# - Notes can be created, edited, deleted
+# - Notes can be dragged
+# - Other users' cursors appear
+# - Form opens on double-click
+```
 
 ---
 
-## ⏭️ Next Step
-
-Now that your components are clean, move on to:
-**[06-HOOKS.md](./06-HOOKS.md)** - Split and organize custom hooks
-
----
-
-## 🔗 Resources
-
-- [React Component Patterns](https://react.dev/learn/thinking-in-react)
-- [Composition vs Inheritance](https://react.dev/learn/sharing-state-between-components)
-- [Next.js App Router Conventions](https://nextjs.org/docs/app/building-your-application/routing)
+**Next: [06-HOOKS.md](./06-HOOKS.md)** - Splitting the 591-line useCanvasTransform!

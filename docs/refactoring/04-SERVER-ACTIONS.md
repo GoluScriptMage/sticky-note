@@ -1,279 +1,162 @@
-# ⚡ Phase 4: Server Actions Refactoring
+# 04 - Server Actions Refactoring
 
-> **Time**: ~1 hour  
-> **Priority**: HIGH - Server code needs to be bulletproof  
-> **Difficulty**: Medium
+## 🎯 Goal
 
----
+Fix errors in server actions and establish consistent patterns for error handling.
 
-## 📋 Overview
-
-Your server actions have several issues:
-
-1. **No input validation** - Trust issues!
-2. **Inconsistent error handling** - Some throw, some return
-3. **Mixed concerns** - `actionWrapper` signature is confusing
-4. **No type safety** - Missing return types
+**Why?** Server actions are how your frontend talks to the database. They MUST be reliable.
 
 ---
 
-## 🔍 Current State Analysis
+## Current Problems
+
+### Problem 1: Duplicate Functions
 
 ```typescript
-// Current issues in room-actions.ts
-export async function createRoom(roomName?: string) {
+// actions-utils.ts
+export async function syncUser() {...}
+
+// Also imported from user-action.ts (but doesn't exist there)
+import { syncUser } from "./user-action";
+```
+
+### Problem 2: Variable Shadowing
+
+```typescript
+// user-action.ts
+export async function getUserData(userId?: string, fields: Prisma.UserSelect) {
   return actionWrapper(async () => {
-    const user = await getAuthUser();  // What if this fails?
-
-    const name = roomName?.trim() || "New Room";  // No validation!
-
-    const newRoom = await db.room.create({...});
-
-    return newRoom.id;  // Just returns ID, not full room
+    const user = await getAuthUser(); // First 'user'
+    let user = await db.user.findUnique({
+      // Second 'user' - ERROR!
+      //...
+    });
   });
 }
 ```
 
-### Problems:
+### Problem 3: Inconsistent actionWrapper Usage
 
-| Issue                | Risk                         |
-| -------------------- | ---------------------------- |
-| No input validation  | SQL injection, XSS           |
-| No length limits     | Database overflow            |
-| Inconsistent returns | Hard to use on client        |
-| No error types       | Can't handle specific errors |
+```typescript
+// Some actions return the result directly
+return actionWrapper(async () => {
+  const result = await actionFn();
+  return { data: result, error: null }; // Double wrapping!
+});
+
+// actionWrapper already wraps in { data, error }!
+```
+
+### Problem 4: Missing Type Safety
+
+```typescript
+// Parameter 'fields' has implicit 'any' type
+export async function getUserData(userId?: string, fields: Prisma.UserSelect) {
+  // TypeScript doesn't know the return type
+}
+```
 
 ---
 
-## 🎯 Target Architecture
+## The Solution: Clean Server Actions
+
+### New File Structure:
 
 ```
 lib/
-├── validations/           # Input validation schemas
-│   ├── room.schema.ts
-│   ├── note.schema.ts
-│   └── user.schema.ts
+├── db.ts                    # Database client (keep as is)
+├── utils.ts                 # General utilities
 └── actions/
-    ├── index.ts           # Re-exports
-    ├── room.actions.ts    # Room CRUD
-    ├── note.actions.ts    # Note CRUD
-    └── user.actions.ts    # User operations
+    ├── index.ts            # Re-exports all actions
+    ├── auth.ts             # Auth utilities (getAuthUser, syncUser)
+    ├── note-actions.ts     # Note CRUD
+    ├── room-actions.ts     # Room CRUD
+    └── user-actions.ts     # User data fetching/updating
 ```
 
 ---
 
-## 📝 Step-by-Step Implementation
+## Step 1: Fix `lib/utils.ts`
 
-### Step 1: Install Zod for Validation
-
-```bash
-npm install zod
-```
-
-### 🧠 Why Zod?
-
-- **Runtime validation** - Catches bad data at runtime
-- **Type inference** - Generates TypeScript types automatically
-- **Composable** - Build complex schemas from simple ones
-- **Great errors** - Human-readable error messages
-
----
-
-### Step 2: Create `lib/validations/room.schema.ts`
-
-```typescript
-/**
- * Room Validation Schemas
- *
- * Zod schemas for validating room-related input.
- * These run at RUNTIME to catch bad data.
- */
-
-import { z } from "zod";
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-export const ROOM_NAME_MIN = 1;
-export const ROOM_NAME_MAX = 50;
-
-// ============================================
-// SCHEMAS
-// ============================================
-
-/**
- * Schema for creating a new room.
- */
-export const createRoomSchema = z.object({
-  roomName: z
-    .string()
-    .min(ROOM_NAME_MIN, "Room name is required")
-    .max(ROOM_NAME_MAX, `Room name must be ${ROOM_NAME_MAX} characters or less`)
-    .transform((val) => val.trim()),
-});
-
-/**
- * Schema for room ID validation.
- */
-export const roomIdSchema = z.object({
-  roomId: z.string().min(1, "Room ID is required").max(100, "Invalid room ID"),
-});
-
-// ============================================
-// INFERRED TYPES
-// ============================================
-
-/** Type for create room input */
-export type CreateRoomInput = z.infer<typeof createRoomSchema>;
-
-/** Type for room ID input */
-export type RoomIdInput = z.infer<typeof roomIdSchema>;
-```
-
----
-
-### Step 3: Create `lib/validations/note.schema.ts`
-
-```typescript
-/**
- * Note Validation Schemas
- */
-
-import { z } from "zod";
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-export const NOTE_NAME_MAX = 100;
-export const NOTE_CONTENT_MAX = 2000;
-export const NOTE_COLORS = [
-  "#fef3c7", // amber
-  "#fce7f3", // pink
-  "#dbeafe", // blue
-  "#d1fae5", // green
-  "#ede9fe", // purple
-  "#ffedd5", // orange
-] as const;
-
-// ============================================
-// SCHEMAS
-// ============================================
-
-/**
- * Schema for creating a new note.
- */
-export const createNoteSchema = z.object({
-  noteName: z
-    .string()
-    .min(1, "Note title is required")
-    .max(NOTE_NAME_MAX, `Title must be ${NOTE_NAME_MAX} characters or less`)
-    .transform((val) => val.trim()),
-
-  content: z
-    .string()
-    .max(
-      NOTE_CONTENT_MAX,
-      `Content must be ${NOTE_CONTENT_MAX} characters or less`
-    )
-    .default(""),
-
-  x: z
-    .number()
-    .min(-10000, "Position out of bounds")
-    .max(10000, "Position out of bounds"),
-
-  y: z
-    .number()
-    .min(-10000, "Position out of bounds")
-    .max(10000, "Position out of bounds"),
-
-  color: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Invalid color format")
-    .optional(),
-});
-
-/**
- * Schema for updating a note.
- */
-export const updateNoteSchema = z.object({
-  id: z.string().min(1, "Note ID is required"),
-  noteName: z
-    .string()
-    .min(1)
-    .max(NOTE_NAME_MAX)
-    .transform((val) => val.trim())
-    .optional(),
-  content: z.string().max(NOTE_CONTENT_MAX).optional(),
-});
-
-/**
- * Schema for note ID.
- */
-export const noteIdSchema = z.object({
-  noteId: z.string().min(1, "Note ID is required"),
-});
-
-// ============================================
-// INFERRED TYPES
-// ============================================
-
-export type CreateNoteInput = z.infer<typeof createNoteSchema>;
-export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
-export type NoteIdInput = z.infer<typeof noteIdSchema>;
-```
-
----
-
-### Step 4: Update `lib/utils.ts` with Better Error Handling
+### Before (with test code):
 
 ```typescript
 import { clsx, type ClassValue } from "clsx";
+import { error } from "console";
 import { twMerge } from "tailwind-merge";
-import { ZodError } from "zod";
 
-// ============================================
-// TYPES
-// ============================================
-
-/**
- * Standard response for server actions.
- * Always returns either data OR error, never both.
- */
 export type ActionResponse<T> =
-  | { success: true; data: T; error: null }
-  | { success: false; data: null; error: string };
-
-/**
- * Error codes for specific error handling.
- */
-export const ErrorCode = {
-  UNAUTHORIZED: "UNAUTHORIZED",
-  NOT_FOUND: "NOT_FOUND",
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-  FORBIDDEN: "FORBIDDEN",
-  INTERNAL_ERROR: "INTERNAL_ERROR",
-} as const;
-
-export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
-
-// ============================================
-// UTILITIES
-// ============================================
+  | { data: T; error: null }
+  | { data: null; error: string };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function ensure<T>(
+  value: T | null | undefined,
+  message: string = "Value is null or undefined"
+): T {
+  if (value === null || value === undefined || value === false) {
+    throw new Error(message);
+  }
+  return value;
+}
+
+const hell: number = "hell"; // ❌ Remove this
+console.log(hell); // ❌ Remove this
+
+export async function actionWrapper<T>(
+  actionFn: () => Promise<ActionResponse<T>> // ❌ Wrong type
+) {
+  try {
+    const result = await actionFn();
+    return { data: result, error: null }; // ❌ Double wrapping
+  } catch (err) {
+    console.error("Something went wrong!", err);
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "Something went wrong!",
+    };
+  }
+}
+```
+
+### After (clean version):
+
+```typescript
+// lib/utils.ts
+
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+// ============================================================================
+// TAILWIND UTILITIES
+// ============================================================================
+
 /**
- * Ensures a value is not null or undefined.
- * @throws Error with the provided message
+ * Combines class names with Tailwind merge
+ * Usage: cn("px-4 py-2", isActive && "bg-blue-500", className)
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// ============================================================================
+// TYPE UTILITIES
+// ============================================================================
+
+/**
+ * Ensures a value is not null/undefined
+ * Throws an error with custom message if it is
+ *
+ * @example
+ * const user = ensure(await db.user.findUnique(...), "User not found");
+ * // user is guaranteed to be non-null after this
  */
 export function ensure<T>(
   value: T | null | undefined,
-  message = "Value is null or undefined"
+  message: string = "Value is null or undefined"
 ): T {
   if (value === null || value === undefined) {
     throw new Error(message);
@@ -281,15 +164,27 @@ export function ensure<T>(
   return value;
 }
 
+// ============================================================================
+// ACTION RESPONSE TYPES
+// ============================================================================
+
 /**
- * Wraps server actions with consistent error handling.
+ * Standard response type for server actions
+ * Always returns either { data, error: null } or { data: null, error }
+ */
+export type ActionResponse<T> =
+  | { data: T; error: null }
+  | { data: null; error: string };
+
+/**
+ * Wraps an async function in try-catch and returns ActionResponse
+ * Use this for all server actions to ensure consistent error handling
  *
  * @example
- * export async function createRoom(input: unknown) {
+ * export async function createNote(data: NoteData) {
  *   return actionWrapper(async () => {
- *     const data = createRoomSchema.parse(input);
- *     const room = await db.room.create({ data });
- *     return room;
+ *     const note = await db.note.create({ data });
+ *     return note;  // Just return the data, wrapper handles the rest
  *   });
  * }
  */
@@ -298,521 +193,583 @@ export async function actionWrapper<T>(
 ): Promise<ActionResponse<T>> {
   try {
     const result = await actionFn();
-    return { success: true, data: result, error: null };
+    return { data: result, error: null };
   } catch (err) {
-    console.error("[Action Error]:", err);
-
-    // Handle Zod validation errors
-    if (err instanceof ZodError) {
-      const message = err.errors.map((e) => e.message).join(", ");
-      return { success: false, data: null, error: message };
-    }
-
-    // Handle known errors
-    if (err instanceof Error) {
-      return { success: false, data: null, error: err.message };
-    }
-
-    // Unknown errors
+    console.error("[Action Error]", err);
     return {
-      success: false,
       data: null,
-      error: "An unexpected error occurred",
+      error: err instanceof Error ? err.message : "Something went wrong!",
     };
   }
 }
 ```
 
+### Key Changes:
+
+1. **Removed test code** - No more `hell` variable
+2. **Fixed `actionWrapper` signature** - Takes `() => Promise<T>`, not `() => Promise<ActionResponse<T>>`
+3. **Better JSDoc comments** - Explains usage with examples
+4. **Removed unused import** - `error` from "console" wasn't used
+
 ---
 
-### Step 5: Refactor `lib/actions/room.actions.ts`
+## Step 2: Create `lib/actions/auth.ts`
+
+### Why This File?
+
+Centralizes all authentication-related utilities.
 
 ```typescript
-/**
- * Room Server Actions
- *
- * All room-related database operations.
- * These run on the server only.
- */
+// lib/actions/auth.ts
+"use server";
 
+import { auth, clerkClient } from "@clerk/nextjs/server";
+import { cache } from "react";
+import { db } from "@/lib/db";
+import { ensure, actionWrapper } from "@/lib/utils";
+
+// ============================================================================
+// SYNC USER
+// ============================================================================
+
+/**
+ * Syncs a user from Clerk to our database
+ * Called when user doesn't exist in DB (webhook missed or first time)
+ */
+export async function syncUser() {
+  return actionWrapper(async () => {
+    const { userId } = await auth();
+    ensure(userId, "Not authenticated");
+
+    // Check if user already exists
+    const existingUser = await db.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (existingUser) {
+      return existingUser;
+    }
+
+    // Fetch from Clerk and create in DB
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(userId);
+    ensure(clerkUser, "Clerk user not found");
+
+    console.log("🔄 Syncing user from Clerk to DB:", userId);
+
+    const newUser = await db.user.create({
+      data: {
+        clerkId: userId,
+        email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
+        name:
+          `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() ||
+          clerkUser.username ||
+          "User",
+        username: clerkUser.username || null,
+        imageUrl: clerkUser.imageUrl ?? null,
+      },
+    });
+
+    console.log("✅ User synced to DB:", newUser.id);
+    return newUser;
+  });
+}
+
+// ============================================================================
+// GET AUTH USER
+// ============================================================================
+
+/**
+ * Gets the current authenticated user from the database
+ * Uses React cache to dedupe requests within the same render
+ *
+ * @throws Error if not authenticated
+ * @returns Database user object
+ */
+export const getAuthUser = cache(async () => {
+  const { userId } = await auth();
+  ensure(userId, "Not authenticated");
+
+  // Try to find user in our DB
+  let user = await db.user.findUnique({
+    where: { clerkId: userId },
+  });
+
+  // If not found, sync from Clerk
+  if (!user) {
+    const syncResult = await syncUser();
+    if (syncResult.error) {
+      throw new Error(syncResult.error);
+    }
+    user = syncResult.data;
+  }
+
+  return ensure(user, "User not found");
+});
+```
+
+---
+
+## Step 3: Fix `lib/actions/user-actions.ts`
+
+### Before (with errors):
+
+```typescript
+"use server";
+import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
+import { actionWrapper, ensure } from "../utils";
+import { getAuthUser } from "./actions-utils";
+
+export async function getUserData(userId?: string, fields: Prisma.UserSelect) {
+  return actionWrapper(async () => {
+    const user = await getAuthUser(); // ❌ First 'user'
+    let user = await db.user.findUnique({
+      // ❌ Second 'user'
+      where: {
+        clerkId: userId || user?.id,
+      },
+      select: fields,
+    });
+    return ensure(user, "User not found");
+  });
+}
+```
+
+### After (fixed):
+
+```typescript
+// lib/actions/user-actions.ts
+"use server";
+
+import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
+import { actionWrapper, ensure } from "@/lib/utils";
+import { getAuthUser } from "./auth";
+
+// ============================================================================
+// GET USER DATA
+// ============================================================================
+
+/**
+ * Fetches specific fields for a user
+ *
+ * @param userId - Optional user ID. If not provided, uses current auth user
+ * @param fields - Prisma select object specifying which fields to return
+ *
+ * @example
+ * // Get current user's rooms
+ * const result = await getUserData(undefined, { rooms: true });
+ *
+ * // Get specific user's profile
+ * const result = await getUserData("user_123", { name: true, email: true });
+ */
+export async function getUserData<T extends Prisma.UserSelect>(
+  userId: string | undefined,
+  fields: T
+) {
+  return actionWrapper(async () => {
+    const authUser = await getAuthUser();
+
+    const userData = await db.user.findUnique({
+      where: {
+        clerkId: userId || authUser.clerkId,
+      },
+      select: fields,
+    });
+
+    return ensure(userData, "User not found");
+  });
+}
+
+// ============================================================================
+// UPDATE USER DATA
+// ============================================================================
+
+/**
+ * Updates data for the current authenticated user
+ *
+ * @param data - Prisma update input object
+ *
+ * @example
+ * await updateUserData({ name: "New Name" });
+ */
+export async function updateUserData(data: Prisma.UserUpdateInput) {
+  return actionWrapper(async () => {
+    const authUser = await getAuthUser();
+
+    const updatedUser = await db.user.update({
+      where: {
+        clerkId: authUser.clerkId,
+      },
+      data,
+    });
+
+    return ensure(updatedUser, "Update failed");
+  });
+}
+```
+
+### Key Fixes:
+
+1. **Renamed variables** - `user` → `authUser`, second `user` → `userData`
+2. **Added generics** - `<T extends Prisma.UserSelect>` for type inference
+3. **Fixed import path** - Use `@/lib/utils` consistently
+4. **Added JSDoc** - Clear documentation with examples
+
+---
+
+## Step 4: Fix `lib/actions/note-actions.ts`
+
+```typescript
+// lib/actions/note-actions.ts
+"use server";
+
+import type { StickyNote } from "@/types";
+import { db } from "@/lib/db";
+import { actionWrapper, ensure } from "@/lib/utils";
+import { getAuthUser } from "./auth";
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type CreateNoteInput = Pick<StickyNote, "noteName" | "content" | "x" | "y"> & {
+  id?: string;
+  color?: string;
+};
+
+type UpdateNoteInput = Pick<StickyNote, "id"> &
+  Partial<Pick<StickyNote, "noteName" | "content">>;
+
+// ============================================================================
+// CREATE NOTE
+// ============================================================================
+
+/**
+ * Creates a new sticky note in a room
+ *
+ * @param data - Note data (noteName, content, x, y)
+ * @param roomId - ID of the room to create the note in
+ */
+export async function createNote(data: CreateNoteInput, roomId: string) {
+  return actionWrapper(async () => {
+    const user = await getAuthUser();
+
+    const newNote = await db.note.create({
+      data: {
+        id: data.id,
+        noteName: data.noteName,
+        content: String(data.content),
+        x: data.x,
+        y: data.y,
+        color: data.color,
+        roomId,
+        userId: user.id,
+        createdBy: user.username || user.name,
+      },
+    });
+
+    return ensure(newNote, "Failed to create note");
+  });
+}
+
+// ============================================================================
+// UPDATE NOTE
+// ============================================================================
+
+/**
+ * Updates an existing note (only if user owns it)
+ *
+ * @param data - Note ID and fields to update
+ */
+export async function updateNote(data: UpdateNoteInput) {
+  return actionWrapper(async () => {
+    const user = await getAuthUser();
+
+    const updatedNote = await db.note.update({
+      where: {
+        id: data.id,
+        userId: user.id, // Only owner can update
+      },
+      data: {
+        ...(data.noteName !== undefined && { noteName: data.noteName }),
+        ...(data.content !== undefined && { content: String(data.content) }),
+      },
+    });
+
+    return ensure(updatedNote, "Failed to update note");
+  });
+}
+
+// ============================================================================
+// DELETE NOTE
+// ============================================================================
+
+/**
+ * Deletes a note (only if user owns it)
+ *
+ * @param noteId - ID of the note to delete
+ */
+export async function deleteNote(noteId: string) {
+  return actionWrapper(async () => {
+    const user = await getAuthUser();
+
+    const deletedNote = await db.note.delete({
+      where: {
+        id: noteId,
+        userId: user.id, // Only owner can delete
+      },
+    });
+
+    return ensure(deletedNote, "Failed to delete note");
+  });
+}
+
+// ============================================================================
+// GET ROOM NOTES
+// ============================================================================
+
+/**
+ * Fetches all notes in a room
+ *
+ * @param roomId - ID of the room
+ */
+export async function getRoomNotes(roomId: string) {
+  return actionWrapper(async () => {
+    await getAuthUser(); // Ensure user is authenticated
+
+    const notes = await db.note.findMany({
+      where: { roomId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return notes;
+  });
+}
+```
+
+---
+
+## Step 5: Fix `lib/actions/room-actions.ts`
+
+```typescript
+// lib/actions/room-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
 import { actionWrapper, ensure } from "@/lib/utils";
-import { getAuthUser } from "./user.actions";
-import { createRoomSchema, roomIdSchema } from "@/lib/validations/room.schema";
-import type { Room } from "@/types";
+import { getAuthUser } from "./auth";
 
-// ============================================
-// CREATE
-// ============================================
+// ============================================================================
+// VERIFY ROOM
+// ============================================================================
 
 /**
- * Create a new room.
- * The authenticated user becomes the owner.
+ * Checks if a room exists
+ * Used before joining to validate room ID
  *
- * @param input - Room creation data
- * @returns The created room
- */
-export async function createRoom(input: unknown) {
-  return actionWrapper(async () => {
-    // 1. Authenticate
-    const user = await getAuthUser();
-    ensure(user, "You must be signed in to create a room");
-
-    // 2. Validate input
-    const { roomName } = createRoomSchema.parse(input);
-
-    // 3. Create room
-    const room = await db.room.create({
-      data: {
-        roomName,
-        ownerId: user.id,
-        users: {
-          connect: { id: user.id },
-        },
-      },
-    });
-
-    // 4. Return room
-    return room;
-  });
-}
-
-// ============================================
-// READ
-// ============================================
-
-/**
- * Get a room by ID.
- *
- * @param input - Object containing roomId
+ * @param roomId - ID of the room to verify
  * @returns The room if found
  */
-export async function getRoom(input: unknown) {
+export async function verifyRoom(roomId: string) {
   return actionWrapper(async () => {
-    const { roomId } = roomIdSchema.parse(input);
+    await getAuthUser(); // Ensure authenticated
 
     const room = await db.room.findUnique({
       where: { id: roomId },
-      include: {
-        owner: {
-          select: { id: true, name: true, imageUrl: true },
-        },
-        users: {
-          select: { id: true, name: true, imageUrl: true },
-        },
-        notes: true,
-      },
     });
 
     return ensure(room, "Room not found");
   });
 }
 
-/**
- * Verify a room exists.
- * Lightweight check without fetching all data.
- *
- * @param input - Object containing roomId
- * @returns true if room exists
- */
-export async function verifyRoom(input: unknown) {
-  return actionWrapper(async () => {
-    const { roomId } = roomIdSchema.parse(input);
-
-    const room = await db.room.findUnique({
-      where: { id: roomId },
-      select: { id: true },
-    });
-
-    return ensure(room, "Room not found") !== null;
-  });
-}
-
-// ============================================
-// UPDATE
-// ============================================
+// ============================================================================
+// CREATE ROOM
+// ============================================================================
 
 /**
- * Join a room.
- * Adds the authenticated user to the room's users.
+ * Creates a new room and adds the creator as owner and member
  *
- * @param input - Object containing roomId
- * @returns The updated room
+ * @param roomName - Optional name for the room (defaults to "New Room")
+ * @returns The new room's ID
  */
-export async function joinRoom(input: unknown) {
+export async function createRoom(roomName?: string) {
   return actionWrapper(async () => {
     const user = await getAuthUser();
-    ensure(user, "You must be signed in to join a room");
+    const name = roomName?.trim() || "New Room";
 
-    const { roomId } = roomIdSchema.parse(input);
-
-    const room = await db.room.update({
-      where: { id: roomId },
+    const newRoom = await db.room.create({
       data: {
-        users: {
-          connect: { id: user.id },
-        },
+        roomName: name,
+        owner: { connect: { id: user.id } },
+        users: { connect: { id: user.id } },
       },
     });
 
-    return ensure(room, "Failed to join room");
+    return newRoom.id;
   });
 }
 
+// ============================================================================
+// JOIN ROOM
+// ============================================================================
+
 /**
- * Leave a room.
- * Removes the authenticated user from the room's users.
+ * Adds the current user to a room's member list
  *
- * @param input - Object containing roomId
- * @returns The updated room
+ * @param roomId - ID of the room to join
  */
-export async function leaveRoom(input: unknown) {
+export async function joinRoom(roomId: string) {
   return actionWrapper(async () => {
     const user = await getAuthUser();
-    ensure(user, "You must be signed in to leave a room");
 
-    const { roomId } = roomIdSchema.parse(input);
-
-    const room = await db.room.update({
+    const updatedRoom = await db.room.update({
       where: { id: roomId },
       data: {
-        users: {
-          disconnect: { id: user.id },
-        },
+        users: { connect: { id: user.id } },
       },
     });
 
-    return ensure(room, "Failed to leave room");
+    return ensure(updatedRoom, "Failed to join room");
   });
 }
 
-// ============================================
-// DELETE
-// ============================================
+// ============================================================================
+// LEAVE ROOM
+// ============================================================================
 
 /**
- * Delete a room.
- * Only the owner can delete a room.
+ * Removes the current user from a room's member list
  *
- * @param input - Object containing roomId
- * @returns The deleted room
+ * @param roomId - ID of the room to leave
  */
-export async function deleteRoom(input: unknown) {
+export async function leaveRoom(roomId: string) {
   return actionWrapper(async () => {
     const user = await getAuthUser();
-    ensure(user, "You must be signed in to delete a room");
 
-    const { roomId } = roomIdSchema.parse(input);
-
-    // Check ownership
-    const room = await db.room.findUnique({
+    const updatedRoom = await db.room.update({
       where: { id: roomId },
-      select: { ownerId: true },
+      data: {
+        users: { disconnect: { id: user.id } },
+      },
     });
 
-    ensure(room, "Room not found");
-    ensure(room.ownerId === user.id, "You can only delete rooms you own");
-
-    // Delete room (cascades to notes)
-    const deletedRoom = await db.room.delete({
-      where: { id: roomId },
-    });
-
-    return deletedRoom;
+    return ensure(updatedRoom, "Failed to leave room");
   });
 }
 ```
 
 ---
 
-### Step 6: Refactor `lib/actions/note.actions.ts`
+## Step 6: Create Index File
 
 ```typescript
-/**
- * Note Server Actions
- *
- * All note-related database operations.
- */
+// lib/actions/index.ts
 
-"use server";
+// Auth utilities
+export { getAuthUser, syncUser } from "./auth";
 
-import { db } from "@/lib/db";
-import { actionWrapper, ensure } from "@/lib/utils";
-import { getAuthUser } from "./user.actions";
-import {
-  createNoteSchema,
-  updateNoteSchema,
-  noteIdSchema,
-} from "@/lib/validations/note.schema";
-import { roomIdSchema } from "@/lib/validations/room.schema";
-import { v4 as uuidv4 } from "uuid";
+// Note actions
+export {
+  createNote,
+  updateNote,
+  deleteNote,
+  getRoomNotes,
+} from "./note-actions";
 
-// ============================================
-// CREATE
-// ============================================
+// Room actions
+export { verifyRoom, createRoom, joinRoom, leaveRoom } from "./room-actions";
 
-/**
- * Create a new note in a room.
- */
-export async function createNote(noteInput: unknown, roomIdInput: unknown) {
-  return actionWrapper(async () => {
-    // 1. Authenticate
-    const user = await getAuthUser();
-    ensure(user, "You must be signed in to create a note");
-
-    // 2. Validate inputs
-    const noteData = createNoteSchema.parse(noteInput);
-    const { roomId } = roomIdSchema.parse(roomIdInput);
-
-    // 3. Generate unique ID
-    const noteId = `${uuidv4().split("-")[0]}_${roomId.split("-")[0]}`;
-
-    // 4. Create note
-    const note = await db.note.create({
-      data: {
-        id: noteId,
-        noteName: noteData.noteName,
-        content: noteData.content,
-        x: noteData.x,
-        y: noteData.y,
-        color: noteData.color || "#fef3c7",
-        createdBy: user.username || user.name,
-        userId: user.id,
-        roomId,
-      },
-    });
-
-    return note;
-  });
-}
-
-// ============================================
-// READ
-// ============================================
-
-/**
- * Get all notes for a room.
- */
-export async function getRoomNotes(input: unknown) {
-  return actionWrapper(async () => {
-    const { roomId } = roomIdSchema.parse(input);
-
-    const notes = await db.note.findMany({
-      where: { roomId },
-      orderBy: { createdAt: "asc" },
-    });
-
-    return notes;
-  });
-}
-
-/**
- * Get a single note by ID.
- */
-export async function getNote(input: unknown) {
-  return actionWrapper(async () => {
-    const { noteId } = noteIdSchema.parse(input);
-
-    const note = await db.note.findUnique({
-      where: { id: noteId },
-    });
-
-    return ensure(note, "Note not found");
-  });
-}
-
-// ============================================
-// UPDATE
-// ============================================
-
-/**
- * Update a note's content.
- * Only the note owner can update.
- */
-export async function updateNote(input: unknown) {
-  return actionWrapper(async () => {
-    const user = await getAuthUser();
-    ensure(user, "You must be signed in to update a note");
-
-    const { id, ...updateData } = updateNoteSchema.parse(input);
-
-    // Only update if user owns the note
-    const note = await db.note.update({
-      where: {
-        id,
-        userId: user.id, // Ensures ownership
-      },
-      data: updateData,
-    });
-
-    return ensure(note, "Failed to update note");
-  });
-}
-
-/**
- * Update a note's position.
- * Any room member can move notes.
- */
-export async function updateNotePosition(
-  noteIdInput: unknown,
-  x: number,
-  y: number
-) {
-  return actionWrapper(async () => {
-    const user = await getAuthUser();
-    ensure(user, "You must be signed in");
-
-    const { noteId } = noteIdSchema.parse(noteIdInput);
-
-    const note = await db.note.update({
-      where: { id: noteId },
-      data: { x, y },
-    });
-
-    return note;
-  });
-}
-
-// ============================================
-// DELETE
-// ============================================
-
-/**
- * Delete a note.
- * Only the note owner can delete.
- */
-export async function deleteNote(input: unknown) {
-  return actionWrapper(async () => {
-    const user = await getAuthUser();
-    ensure(user, "You must be signed in to delete a note");
-
-    const { noteId } = noteIdSchema.parse(input);
-
-    const note = await db.note.delete({
-      where: {
-        id: noteId,
-        userId: user.id, // Ensures ownership
-      },
-    });
-
-    return ensure(note, "Failed to delete note");
-  });
-}
+// User actions
+export { getUserData, updateUserData } from "./user-actions";
 ```
 
 ---
 
-### Step 7: Using Actions on the Client
+## Step 7: Delete Old Files
+
+```bash
+# Remove the old actions-utils.ts (replaced by auth.ts)
+rm lib/actions/actions-utils.ts
+```
+
+---
+
+## 🎓 What You Learned
+
+### 1. Consistent Action Pattern
+
+Every action follows this pattern:
 
 ```typescript
-// In a component
-"use client";
+export async function actionName(params) {
+  return actionWrapper(async () => {
+    const user = await getAuthUser();  // 1. Authenticate
 
-import { createRoom } from "@/lib/actions/room.actions";
-import { toast } from "sonner";
+    const result = await db.model.operation({...});  // 2. Database operation
 
-async function handleCreateRoom(formData: FormData) {
-  const roomName = formData.get("roomName");
+    return ensure(result, "Error message");  // 3. Validate & return
+  });
+}
+```
 
-  const result = await createRoom({ roomName });
+### 2. ActionWrapper Simplifies Error Handling
 
-  if (!result.success) {
-    toast.error(result.error);
-    return;
+```typescript
+// Without actionWrapper - lots of boilerplate
+export async function createNote(data) {
+  try {
+    const result = await db.note.create({...});
+    return { data: result, error: null };
+  } catch (err) {
+    return { data: null, error: err.message };
   }
+}
 
-  // Success!
-  router.push(`/room/${result.data.id}`);
+// With actionWrapper - clean and consistent
+export async function createNote(data) {
+  return actionWrapper(async () => {
+    return await db.note.create({...});
+  });
 }
 ```
+
+### 3. Type-Safe Parameters
+
+```typescript
+// ❌ Implicit any
+function getUserData(fields) {}
+
+// ✅ Explicit types with generics
+function getUserData<T extends Prisma.UserSelect>(fields: T) {}
+```
+
+### 4. Separation of Concerns
+
+| File              | Responsibility             |
+| ----------------- | -------------------------- |
+| `auth.ts`         | Authentication & user sync |
+| `note-actions.ts` | Note CRUD                  |
+| `room-actions.ts` | Room CRUD                  |
+| `user-actions.ts` | User data queries          |
 
 ---
 
 ## ✅ Verification Checklist
 
-Test each action:
+```bash
+# 1. TypeScript check
+npx tsc --noEmit
 
-- [ ] `createRoom` - Valid input creates room
-- [ ] `createRoom` - Empty name shows error
-- [ ] `createRoom` - Too long name shows error
-- [ ] `joinRoom` - Can join existing room
-- [ ] `leaveRoom` - Can leave room
-- [ ] `createNote` - Valid input creates note
-- [ ] `createNote` - Missing title shows error
-- [ ] `updateNote` - Can update own note
-- [ ] `updateNote` - Cannot update others' notes
-- [ ] `deleteNote` - Can delete own note
-- [ ] `deleteNote` - Cannot delete others' notes
-
----
-
-## 🧠 Deep Dive: Zod Patterns
-
-### Chaining Transformations
-
-```typescript
-const schema = z
-  .string()
-  .trim() // Remove whitespace
-  .toLowerCase() // Convert to lowercase
-  .min(1, "Required") // Then validate length
-  .max(50, "Too long");
-```
-
-### Custom Validation
-
-```typescript
-const passwordSchema = z
-  .string()
-  .min(8, "At least 8 characters")
-  .refine((val) => /[A-Z]/.test(val), "Need uppercase")
-  .refine((val) => /[0-9]/.test(val), "Need number");
-```
-
-### Optional with Default
-
-```typescript
-const schema = z.object({
-  color: z.string().default("#ffffff"), // Default if undefined
-  count: z.number().optional(), // Can be undefined
-  name: z.string().nullable(), // Can be null
-});
-```
-
-### Discriminated Unions
-
-```typescript
-const eventSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("click"), x: z.number(), y: z.number() }),
-  z.object({ type: z.literal("keypress"), key: z.string() }),
-  z.object({ type: z.literal("scroll"), delta: z.number() }),
-]);
+# 2. Test each action works
+# - Create a room
+# - Join a room
+# - Create a note
+# - Update a note
+# - Delete a note
 ```
 
 ---
 
-## 📚 What You Learned
-
-1. **Input Validation** - Always validate untrusted input
-2. **Zod Schemas** - Runtime validation with type inference
-3. **Consistent Responses** - `{ success, data, error }` pattern
-4. **Error Handling** - Catch and transform errors properly
-5. **Authorization** - Check ownership before operations
-6. **Separation of Concerns** - Validation schemas separate from actions
-
----
-
-## ⏭️ Next Step
-
-Now that your server code is solid, move on to:
-**[05-COMPONENTS.md](./05-COMPONENTS.md)** - Extract and organize components
-
----
-
-## 🔗 Resources
-
-- [Zod Documentation](https://zod.dev/)
-- [Next.js Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
-- [Prisma Best Practices](https://www.prisma.io/docs/guides)
+**Next: [05-COMPONENTS.md](./05-COMPONENTS.md)** - Breaking down the 322-line page.tsx!

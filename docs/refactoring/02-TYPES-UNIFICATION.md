@@ -1,702 +1,586 @@
-# 🏷️ Phase 2: Types Unification
+# 02 - Types Unification
 
-> **Time**: ~1 hour  
-> **Priority**: HIGH - Types are the foundation of TypeScript  
-> **Difficulty**: Medium
+## 🎯 Goal
 
----
+Create a clean, consistent type system that's easy to understand and maintain.
 
-## 📋 Overview
-
-Your codebase has **duplicate type definitions** scattered across multiple files:
-
-- `types/types.ts`
-- `types/socketTypes.ts`
-- `app/room/[id]/room-types.ts`
-
-This causes:
-
-1. **Inconsistency** - Same thing defined differently
-2. **Maintenance hell** - Change in one place, forget another
-3. **Type mismatches** - Different definitions cause subtle bugs
+**Why?** Good types = fewer bugs, better autocomplete, easier refactoring.
 
 ---
 
-## 🔍 Current State Analysis
+## Current Problems
 
-### Duplicate: `StickyNote`
+### Problem 1: Types Scattered Across Files
 
-**In `types/types.ts`:**
-
-```typescript
-export interface StickyNote {
-  noteName: string;
-  createdBy: string | null;
-  content: string | number;
-  x: number;
-  y: number;
-  color?: string;
-  z?: number;
-}
+```
+types/types.ts        → General types
+types/socketTypes.ts  → Socket types
+store/useStickyStore.ts → Store types
+app/room/[id]/room-types.ts → Room types
+app/room/[id]/sticky-note.tsx → Props defined inline
 ```
 
-**In `app/room/[id]/room-types.ts`:**
+**Why this is bad:**
+
+- Hard to find where a type is defined
+- Types might get duplicated
+- No single source of truth
+
+### Problem 2: Inconsistent Naming
 
 ```typescript
-export interface StickyNote {
-  id: string;
-  noteName: string;
-  content: string;
-  createdBy?: string;
-  x: number;
-  y: number;
-}
+StickyNote; // PascalCase ✓
+NoteCoordinates; // PascalCase ✓
+OtherUserCursor; // PascalCase ✓
+DataPayload; // Generic name 😕
+StickyStore; // Store vs State confusion
 ```
 
-### Problems:
+### Problem 3: Missing/Wrong Types
 
-| Field       | types.ts           | room-types.ts | Issue                        |
-| ----------- | ------------------ | ------------- | ---------------------------- |
-| `id`        | ❌ Missing         | ✅ Has        | How do you identify notes?!  |
-| `content`   | `string \| number` | `string`      | Why would content be number? |
-| `createdBy` | `string \| null`   | `string?`     | Inconsistent nullability     |
-| `color`     | ✅ Has             | ❌ Missing    | One has colors, one doesn't  |
-| `z`         | ✅ Has             | ❌ Missing    | Z-index missing in one       |
+```typescript
+// Missing id in StickyNote
+// content: string | number (why number?)
+// createdBy: string | null (inconsistent with usage)
+```
 
 ---
 
-## 🎯 Target State
+## The Solution: Organized Type Structure
+
+### New Structure:
 
 ```
 types/
 ├── index.ts          # Re-exports everything
+├── note.types.ts     # Note-related types
 ├── user.types.ts     # User-related types
 ├── room.types.ts     # Room-related types
-├── note.types.ts     # Note-related types
-└── socket.types.ts   # Socket.io types
+├── socket.types.ts   # Socket event types
+└── store.types.ts    # Zustand store types
 ```
 
 ---
 
-## 📝 Step-by-Step Implementation
+## Step 1: Create `types/note.types.ts`
 
-### Step 1: Create `types/note.types.ts`
+### Why This File?
+
+Groups all note-related types in one place.
+
+### Create the file:
 
 ```typescript
-/**
- * Note Types
- *
- * Single source of truth for all note-related types.
- * These types mirror the Prisma schema but are safe to use client-side.
- */
-
-// ============================================
-// BASE TYPES
-// ============================================
+// types/note.types.ts
 
 /**
- * Core sticky note properties.
- * Matches the Note model in Prisma schema.
- */
-export interface Note {
-  id: string;
-  noteName: string;
-  content: string;
-  createdBy: string;
-  x: number;
-  y: number;
-  z: number;
-  color: string;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-  roomId: string;
-}
-
-/**
- * Client-side sticky note representation.
- * Used in Zustand store and UI components.
- * Omits server-only fields like userId, timestamps.
+ * Core sticky note data structure
+ * Used in: database, store, components
  */
 export interface StickyNote {
+  /** Unique identifier (format: uuid_roomPrefix) */
   id: string;
+
+  /** Display title of the note */
   noteName: string;
+
+  /** Username of creator, null for anonymous */
+  createdBy: string | null;
+
+  /** Note content/body text */
   content: string;
-  createdBy: string;
+
+  /** X position in world coordinates (pixels) */
   x: number;
+
+  /** Y position in world coordinates (pixels) */
   y: number;
-  z?: number;
+
+  /** Optional color theme key */
   color?: string;
+
+  /** Z-index for stacking order */
+  zIndex?: number;
 }
 
-// ============================================
-// FORM TYPES
-// ============================================
+/**
+ * Data needed to create a new note
+ * Omits id (auto-generated) and timestamps
+ */
+export type CreateNoteData = Omit<StickyNote, "id">;
 
 /**
- * Data needed to create a new note.
+ * Data for updating an existing note
+ * All fields optional except id
  */
-export type CreateNoteInput = Pick<
-  StickyNote,
-  "noteName" | "content" | "x" | "y"
-> & {
-  color?: string;
-};
+export type UpdateNoteData = Partial<StickyNote> & { id: string };
 
 /**
- * Data needed to update a note.
+ * 2D position coordinates
+ * Used for: note positions, cursor positions, click positions
  */
-export type UpdateNoteInput = Pick<StickyNote, "id"> &
-  Partial<Pick<StickyNote, "noteName" | "content">>;
-
-// ============================================
-// UTILITY TYPES
-// ============================================
-
-/**
- * Coordinates for note positioning.
- */
-export interface NoteCoordinates {
+export interface Position {
   x: number;
   y: number;
 }
 
 /**
- * Note with selected state (for UI).
+ * Note color theme configuration
  */
-export interface SelectableNote extends StickyNote {
-  isSelected: boolean;
+export interface NoteColorTheme {
+  bg: string;
+  border: string;
+  header: string;
+  accent: string;
+  text: string;
+  shadow: string;
 }
 ```
 
-### 🧠 Why These Design Choices?
+### What Changed and Why:
 
-| Choice                              | Why                                                   |
-| ----------------------------------- | ----------------------------------------------------- |
-| `Note` vs `StickyNote`              | `Note` matches DB exactly, `StickyNote` is for client |
-| All fields required in `StickyNote` | No guessing about undefined fields                    |
-| `Pick` and `Partial`                | TypeScript utilities - learn them!                    |
-| Separate `Input` types              | Clear contract for what forms need                    |
+| Before                      | After                              | Why                    |
+| --------------------------- | ---------------------------------- | ---------------------- |
+| `content: string \| number` | `content: string`                  | Content is always text |
+| `z?: number`                | `zIndex?: number`                  | Clearer name           |
+| No JSDoc comments           | Full documentation                 | Self-documenting code  |
+| No utility types            | `CreateNoteData`, `UpdateNoteData` | DRY principle          |
+| `NoteCoordinates`           | `Position`                         | More generic, reusable |
 
 ---
 
-### Step 2: Create `types/user.types.ts`
+## Step 2: Create `types/user.types.ts`
+
+### Why This File?
+
+Groups all user-related types.
 
 ```typescript
-/**
- * User Types
- *
- * Single source of truth for all user-related types.
- */
+// types/user.types.ts
 
-// ============================================
-// BASE TYPES
-// ============================================
+import type { Position } from "./note.types";
 
 /**
- * Full user model (matches Prisma schema).
- */
-export interface User {
-  id: string;
-  clerkId: string;
-  name: string;
-  username: string | null;
-  email: string;
-  imageUrl: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * User data stored in client state.
- * Minimal info needed for the UI.
+ * Local user data stored in browser
  */
 export interface UserData {
+  /** Display name for cursor labels */
   userName: string;
-  roomId?: string;
+
+  /** Current room the user is in */
+  roomId: string;
 }
 
-// ============================================
-// CURSOR TYPES
-// ============================================
-
 /**
- * Other user's cursor position and info.
+ * Cursor data for other users in the room
  */
-export interface OtherUserCursor {
+export interface RemoteCursor extends Position {
+  /** Display name shown on cursor */
   userName: string;
-  x: number;
-  y: number;
+
+  /** Cursor color (hex) */
   color: string;
 }
 
 /**
- * Map of all other users' cursors.
- * Key is the socket ID.
+ * Map of user IDs to their cursor data
+ * Used in: store, Cursor component
  */
-export type OtherUsers = Record<string, OtherUserCursor>;
-
-// ============================================
-// AUTH TYPES
-// ============================================
-
-/**
- * Minimal user info from authentication.
- */
-export interface AuthUser {
-  id: string;
-  username: string | null;
-  email: string;
-}
+export type RemoteCursors = Record<string, RemoteCursor>;
 ```
+
+### What Changed:
+
+| Before            | After              | Why                          |
+| ----------------- | ------------------ | ---------------------------- |
+| `OtherUserCursor` | `RemoteCursor`     | Clearer what "other" means   |
+| Optional fields   | Required fields    | Cursors always have all data |
+| Separate x, y     | `extends Position` | Reuse Position type          |
 
 ---
 
-### Step 3: Create `types/room.types.ts`
+## Step 3: Create `types/socket.types.ts`
+
+### Why This File?
+
+Socket event types are complex. Having them separate makes them easy to find.
 
 ```typescript
-/**
- * Room Types
- *
- * Single source of truth for all room-related types.
- */
+// types/socket.types.ts
 
-import type { StickyNote } from "./note.types";
-import type { User } from "./user.types";
+import type { Position } from "./note.types";
 
-// ============================================
-// BASE TYPES
-// ============================================
-
-/**
- * Full room model (matches Prisma schema).
- */
-export interface Room {
-  id: string;
-  roomName: string;
-  ownerId: string;
-}
-
-/**
- * Room with related data.
- */
-export interface RoomWithRelations extends Room {
-  owner: User;
-  users: User[];
-  notes: StickyNote[];
-}
-
-/**
- * Room item for lists (minimal data).
- */
-export interface RoomListItem {
-  id: string;
-  roomName: string;
-}
-
-// ============================================
-// COMPONENT PROPS
-// ============================================
-
-/**
- * Props for zoom control components.
- */
-export interface ZoomControlsProps {
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onReset: () => void;
-  onFitToScreen: () => void;
-  scale: number;
-}
-
-// ============================================
-// CANVAS TYPES
-// ============================================
-
-/**
- * Canvas transform state.
- */
-export interface CanvasTransform {
-  x: number;
-  y: number;
-  scale: number;
-}
-
-/**
- * Canvas viewport bounds.
- */
-export interface ViewportBounds {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-}
-```
-
----
-
-### Step 4: Create `types/socket.types.ts`
-
-```typescript
-/**
- * Socket.io Types
- *
- * Type definitions for real-time communication.
- * These types are used by both client and server.
- */
-
-import type { NoteCoordinates } from "./note.types";
-
-// ============================================
+// ============================================================================
 // PAYLOAD TYPES
-// ============================================
+// ============================================================================
 
 /**
- * Standard payload for room-related socket events.
+ * User identification payload
+ * Sent when joining/leaving rooms
  */
-export interface RoomEventPayload {
+export interface UserPayload {
   userId: string;
   roomId: string;
   userName: string;
 }
 
 /**
- * Payload for mouse movement events.
+ * Cursor position update payload
  */
-export interface MouseMovePayload extends NoteCoordinates {
+export interface CursorPayload extends Position {
   userId: string;
 }
 
-// ============================================
-// EVENT INTERFACES
-// ============================================
+// ============================================================================
+// SOCKET EVENT MAPS
+// ============================================================================
 
 /**
- * Events sent from server to client.
+ * Events the SERVER sends TO the client
+ *
+ * Usage in socket.io:
+ * socket.on('user_joined', (data: UserPayload) => {...})
  */
 export interface ServerToClientEvents {
-  /** Notifies clients when a user joins the room */
-  user_joined: (data: RoomEventPayload) => void;
+  /** Another user joined the room */
+  user_joined: (data: UserPayload) => void;
 
-  /** Notifies clients when a user leaves the room */
-  user_left: (data: RoomEventPayload) => void;
+  /** A user left the room */
+  user_left: (data: UserPayload) => void;
 
-  /** Sends current room data to newly joined user */
-  room_data: (data: Partial<RoomEventPayload>) => void;
+  /** Receive room state on join */
+  room_data: (data: Partial<UserPayload>) => void;
 
-  /** Broadcasts cursor position updates */
-  mouse_update: (data: MouseMovePayload) => void;
+  /** Another user's cursor moved */
+  mouse_update: (data: CursorPayload) => void;
 }
 
 /**
- * Events sent from client to server.
+ * Events the CLIENT sends TO the server
+ *
+ * Usage in socket.io:
+ * socket.emit('join_room', data)
  */
 export interface ClientToServerEvents {
   /** Request to join a room */
-  join_room: (data: RoomEventPayload) => void;
+  join_room: (data: UserPayload) => void;
 
-  /** Request to leave a room */
-  leave_room: (data: RoomEventPayload) => void;
+  /** Notify leaving a room */
+  leave_room: (data: UserPayload) => void;
 
-  /** Request current room data */
-  get_room_data: (data: Partial<RoomEventPayload>) => void;
+  /** Request current room state */
+  get_room_data: (data: Partial<UserPayload>) => void;
 
   /** Send cursor position update */
-  mouse_move: (data: NoteCoordinates) => void;
+  mouse_move: (data: Position) => void;
 }
 
 /**
- * Socket data stored in socket.data.
+ * Type for the typed socket instance
  */
-export interface SocketData {
-  userId: string;
-  roomId: string;
-  userName: string;
-}
-
-// ============================================
-// TYPE ALIASES
-// ============================================
-
-/**
- * Type alias for backwards compatibility.
- * @deprecated Use RoomEventPayload instead
- */
-export type DataPayload = RoomEventPayload;
+export type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 ```
+
+### What Changed:
+
+| Before                       | After               | Why                        |
+| ---------------------------- | ------------------- | -------------------------- |
+| `DataPayload`                | `UserPayload`       | Describes what it contains |
+| `NoteCoordinates & {userId}` | `CursorPayload`     | Named type is clearer      |
+| No TypedSocket               | `TypedSocket` alias | Easy to type socket refs   |
 
 ---
 
-### Step 5: Create `types/index.ts`
+## Step 4: Create `types/store.types.ts`
+
+### Why This File?
+
+Store types are separate because they're used differently than data types.
 
 ```typescript
+// types/store.types.ts
+
+import type { StickyNote, UpdateNoteData, Position } from "./note.types";
+import type { UserData, RemoteCursors } from "./user.types";
+
+// ============================================================================
+// STORE STATE
+// ============================================================================
+
 /**
- * Types Index
- *
- * Re-exports all types for convenient importing.
- *
- * @example
- * // Instead of:
- * import { StickyNote } from '@/types/note.types';
- * import { User } from '@/types/user.types';
- *
- * // You can do:
- * import { StickyNote, User } from '@/types';
+ * The complete state shape of the sticky store
  */
+export interface StickyStoreState {
+  // === Note Data ===
+  notes: StickyNote[];
+
+  // === User Data ===
+  userData: UserData | null;
+  otherUsers: RemoteCursors;
+
+  // === UI State ===
+  showForm: boolean;
+  selectNoteId: string | null;
+  editNote: Partial<StickyNote> | null;
+  coordinates: Position | null;
+
+  // === Internal Flags ===
+  isDummyNotesAdded: boolean;
+}
+
+// ============================================================================
+// STORE ACTIONS
+// ============================================================================
+
+/**
+ * Actions available on the store
+ */
+export interface StickyStoreActions {
+  // === Generic Update ===
+  setStore: (updates: Partial<StickyStoreState>) => void;
+
+  // === Note Actions ===
+  addNote: (note: StickyNote) => void;
+  updateNote: (id: string, data: Partial<StickyNote>) => void;
+  deleteNote: (noteId: string) => void;
+  editNote: (noteId: string) => void;
+
+  // === User Actions ===
+  updateUserData: (userName: string, roomId: string) => void;
+  updateOtherUser: (
+    userId: string,
+    data: Partial<RemoteCursors[string]>
+  ) => void;
+  removeOtherUser: (userId: string) => void;
+
+  // === Dev/Test Actions ===
+  addDummyNotes: () => void;
+}
+
+/**
+ * Complete store type (state + actions)
+ */
+export type StickyStore = StickyStoreState & StickyStoreActions;
+```
+
+### Key Changes:
+
+1. **Separated State from Actions** - Clearer what's data vs functions
+2. **Renamed confusing methods:**
+   - `handleNoteDelete` → `deleteNote` (clearer)
+   - `handleNoteEdit` → `editNote` (clearer)
+   - `updateExistingNote` → merged into `updateNote` (DRY)
+   - `deleteOtherUsers` → `removeOtherUser` (singular, clearer verb)
+   - `updateOtherUsers` → `updateOtherUser` (singular)
+
+---
+
+## Step 5: Create `types/index.ts`
+
+### Why This File?
+
+Central export so you can import from one place.
+
+```typescript
+// types/index.ts
 
 // Note types
 export type {
-  Note,
   StickyNote,
-  CreateNoteInput,
-  UpdateNoteInput,
-  NoteCoordinates,
-  SelectableNote,
+  CreateNoteData,
+  UpdateNoteData,
+  Position,
+  NoteColorTheme,
 } from "./note.types";
 
 // User types
-export type {
-  User,
-  UserData,
-  OtherUserCursor,
-  OtherUsers,
-  AuthUser,
-} from "./user.types";
-
-// Room types
-export type {
-  Room,
-  RoomWithRelations,
-  RoomListItem,
-  ZoomControlsProps,
-  CanvasTransform,
-  ViewportBounds,
-} from "./room.types";
+export type { UserData, RemoteCursor, RemoteCursors } from "./user.types";
 
 // Socket types
 export type {
-  RoomEventPayload,
-  MouseMovePayload,
+  UserPayload,
+  CursorPayload,
   ServerToClientEvents,
   ClientToServerEvents,
-  SocketData,
-  DataPayload,
+  TypedSocket,
 } from "./socket.types";
+
+// Store types
+export type {
+  StickyStoreState,
+  StickyStoreActions,
+  StickyStore,
+} from "./store.types";
 ```
 
----
-
-### Step 6: Update All Imports
-
-Now you need to update imports across your codebase.
-
-**Search and Replace Pattern:**
-
-| Old Import                   | New Import       |
-| ---------------------------- | ---------------- |
-| `from "@/types/types"`       | `from "@/types"` |
-| `from "@/types/socketTypes"` | `from "@/types"` |
-| `from "./room-types"`        | `from "@/types"` |
-
-**Files to Update:**
-
-1. `store/useStickyStore.ts`
-2. `hooks/useSocket.ts`
-3. `hooks/useCanvasTransform.ts`
-4. `app/room/[id]/page.tsx`
-5. `app/room/[id]/sticky-note.tsx`
-6. `app/room/[id]/note-form.tsx`
-7. `app/room/[id]/zoom-controls.tsx`
-8. `lib/actions/note-actions.ts`
-9. `constants/dummyData.ts`
-10. `server/index.ts`
-
-**Example Update:**
+### Usage After:
 
 ```typescript
-// Before
-import type { StickyNote, UserData, OtherUsers } from "@/types/types";
-import type {
-  ServerToClientEvents,
-  ClientToServerEvents,
-} from "@/types/socketTypes";
+// Before: Multiple imports
+import type { StickyNote } from "@/types/types";
+import type { ServerToClientEvents } from "@/types/socketTypes";
 
-// After
-import type {
-  StickyNote,
-  UserData,
-  OtherUsers,
-  ServerToClientEvents,
-  ClientToServerEvents,
-} from "@/types";
+// After: Single import
+import type { StickyNote, ServerToClientEvents } from "@/types";
 ```
 
 ---
 
-### Step 7: Delete Old Files
+## Step 6: Update Existing Imports
 
-After updating all imports:
+After creating the new type files, update imports across your codebase:
 
-1. Delete `types/types.ts`
-2. Delete `types/socketTypes.ts`
-3. Delete `app/room/[id]/room-types.ts`
+### Files to Update:
+
+```typescript
+// hooks/useSocket.ts
+- import { ServerToClientEvents, ClientToServerEvents, DataPayload } from "@/types/socketTypes";
++ import type { ServerToClientEvents, ClientToServerEvents, UserPayload, TypedSocket } from "@/types";
+
+// store/useStickyStore.ts
+- import type { NoteCoordinates, OtherUserCursor, OtherUsers, StickyNote, UserData } from "@/types/types";
++ import type { Position, RemoteCursor, RemoteCursors, StickyNote, UserData, StickyStoreState, StickyStoreActions } from "@/types";
+
+// app/room/[id]/sticky-note.tsx
+- import type { StickyNote } from "@/types/types";
++ import type { StickyNote } from "@/types";
+```
+
+---
+
+## Step 7: Delete Old Type Files
+
+After migrating everything:
+
+```bash
+# Remove old files
+rm types/types.ts
+rm types/socketTypes.ts
+rm app/room/[id]/room-types.ts  # If it only had duplicates
+```
+
+---
+
+## 🎓 What You Learned
+
+### 1. Type Organization Patterns
+
+**Feature-based:** Group by what the types represent
+
+```
+types/
+├── note.types.ts   # All about notes
+├── user.types.ts   # All about users
+└── socket.types.ts # All about sockets
+```
+
+### 2. Type Naming Conventions
+
+| Pattern           | Example              | When to Use              |
+| ----------------- | -------------------- | ------------------------ |
+| `PascalCase`      | `StickyNote`         | All types and interfaces |
+| `*Data` suffix    | `UserData`           | Raw data structures      |
+| `*Payload` suffix | `UserPayload`        | Data sent over network   |
+| `*Props` suffix   | `StickyNoteProps`    | React component props    |
+| `*State` suffix   | `StickyStoreState`   | State container types    |
+| `*Actions` suffix | `StickyStoreActions` | Action/method types      |
+
+### 3. Type Utilities
+
+```typescript
+// Omit - Remove fields from a type
+type CreateNote = Omit<StickyNote, "id">;
+
+// Pick - Select specific fields
+type Position = Pick<StickyNote, "x" | "y">;
+
+// Partial - Make all fields optional
+type NoteUpdate = Partial<StickyNote>;
+
+// Required - Make all fields required
+type RequiredNote = Required<StickyNote>;
+
+// Record - Create a map type
+type CursorMap = Record<string, RemoteCursor>;
+```
+
+### 4. Documentation with JSDoc
+
+```typescript
+/**
+ * Brief description of what this type represents.
+ *
+ * @example
+ * const note: StickyNote = {
+ *   id: 'abc123',
+ *   noteName: 'My Note',
+ *   // ...
+ * };
+ */
+export interface StickyNote {
+  /** Unique identifier */
+  id: string;
+  // ...
+}
+```
 
 ---
 
 ## ✅ Verification Checklist
 
-Run these commands to verify:
+After all changes:
 
 ```bash
-# Check for any remaining old imports
-grep -r "from \"@/types/types\"" .
-grep -r "from \"@/types/socketTypes\"" .
-grep -r "from \"./room-types\"" .
+# 1. Make sure all new files exist
+ls types/
 
-# Should return nothing if all imports are updated
+# Expected output:
+# index.ts
+# note.types.ts
+# user.types.ts
+# socket.types.ts
+# store.types.ts
 
-# Run TypeScript check
+# 2. Run TypeScript check
 npx tsc --noEmit
+
+# 3. Test imports work
+# Add this to any file temporarily:
+import type { StickyNote, UserData, TypedSocket } from "@/types";
 ```
 
 ---
 
-## 🧠 Deep Dive: TypeScript Utility Types
+## 📊 Before vs After Comparison
 
-### `Pick<T, K>`
+### Before:
 
-Selects specific properties from a type.
-
-```typescript
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-}
-
-// Only id and name
-type PublicUser = Pick<User, "id" | "name">;
-// { id: string; name: string; }
+```
+types/
+├── types.ts          # 31 lines, missing fields, wrong types
+└── socketTypes.ts    # 46 lines, generic names
 ```
 
-### `Omit<T, K>`
+### After:
 
-Removes specific properties from a type.
-
-```typescript
-// Everything except password
-type SafeUser = Omit<User, "password">;
-// { id: string; name: string; email: string; }
+```
+types/
+├── index.ts          # ~40 lines, central exports
+├── note.types.ts     # ~50 lines, complete note types
+├── user.types.ts     # ~30 lines, user types
+├── socket.types.ts   # ~60 lines, socket types with docs
+└── store.types.ts    # ~50 lines, store types
 ```
 
-### `Partial<T>`
+**Total: ~230 lines vs ~77 lines**
 
-Makes all properties optional.
+But wait, more lines? Yes, because:
 
-```typescript
-type UpdateUserInput = Partial<User>;
-// { id?: string; name?: string; email?: string; password?: string; }
-```
-
-### `Required<T>`
-
-Makes all properties required.
-
-```typescript
-interface Config {
-  debug?: boolean;
-  apiUrl?: string;
-}
-
-type RequiredConfig = Required<Config>;
-// { debug: boolean; apiUrl: string; }
-```
-
-### `Record<K, V>`
-
-Creates a type with keys of type K and values of type V.
-
-```typescript
-type UserMap = Record<string, User>;
-// { [key: string]: User }
-```
+- Full JSDoc documentation
+- Type utilities (`CreateNoteData`, `UpdateNoteData`)
+- Clear naming
+- No missing fields
 
 ---
 
-## 💡 Pro Tips
-
-### 1. Use `type` vs `interface` Correctly
-
-```typescript
-// Use interface for objects that might be extended
-interface Animal {
-  name: string;
-}
-
-interface Dog extends Animal {
-  breed: string;
-}
-
-// Use type for unions, intersections, or primitives
-type Status = "pending" | "success" | "error";
-type ID = string | number;
-```
-
-### 2. Export Types Separately
-
-```typescript
-// ✅ Good - clear what's a type
-export type { StickyNote, User };
-export { createNote, deleteNote };
-
-// ❌ Avoid - unclear what's what
-export { StickyNote, User, createNote, deleteNote };
-```
-
-### 3. Use Discriminated Unions
-
-```typescript
-// For state that has different shapes
-type AsyncState<T> =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "success"; data: T }
-  | { status: "error"; error: string };
-
-// TypeScript knows the shape based on status!
-function handleState(state: AsyncState<User>) {
-  if (state.status === "success") {
-    console.log(state.data); // TypeScript knows data exists
-  }
-  if (state.status === "error") {
-    console.log(state.error); // TypeScript knows error exists
-  }
-}
-```
-
----
-
-## 📚 What You Learned
-
-1. **Single Source of Truth** - One definition per type
-2. **Organized by Domain** - User types, note types, etc.
-3. **TypeScript Utilities** - Pick, Omit, Partial, Record
-4. **Barrel Exports** - index.ts re-exports for clean imports
-5. **Type vs Interface** - When to use each
-6. **JSDoc Comments** - Document your types!
-
----
-
-## ⏭️ Next Step
-
-Now that your types are unified, move on to:
-**[03-STATE-MANAGEMENT.md](./03-STATE-MANAGEMENT.md)** - Split Zustand store
-
----
-
-## 🔗 Resources
-
-- [TypeScript Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html)
-- [TypeScript Deep Dive](https://basarat.gitbook.io/typescript/)
-- [Matt Pocock's TypeScript Tips](https://www.totaltypescript.com/)
+**Next: [03-STATE-MANAGEMENT.md](./03-STATE-MANAGEMENT.md)** - Let's fix the Zustand store!

@@ -1,5 +1,5 @@
+import type { Action } from "@prisma/client/runtime/library";
 import { clsx, type ClassValue } from "clsx";
-import { error } from "console";
 import { twMerge } from "tailwind-merge";
 
 export type ActionResponse<T> =
@@ -27,13 +27,10 @@ export function ensure<T>(
   return value;
 }
 
-const hell: number = "hell";
-console.log(hell);
-
 // Action Wrapper
 export async function actionWrapper<T>(
-  actionFn: () => Promise<ActionResponse<T>>
-) {
+  actionFn: () => Promise<T>
+): Promise<ActionResponse<T>> {
   try {
     const result = await actionFn();
     return { data: result, error: null };
@@ -45,4 +42,3 @@ export async function actionWrapper<T>(
     };
   }
 }
-

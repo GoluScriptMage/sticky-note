@@ -85,10 +85,7 @@ export default function CanvasPage() {
   if (!userId) {
     throw new Error("Not logged in");
   }
-
-  const hell: number = "hellp";
-  hell = 1 + 1;
-
+  
   const socket = useSocket(roomId, userId!, userName);
   const throttleRef = useRef(0);
   const THROTTLE_DELAY = 50;

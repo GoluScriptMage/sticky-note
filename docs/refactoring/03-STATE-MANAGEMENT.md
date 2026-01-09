@@ -1,143 +1,207 @@
-# 🗃️ Phase 3: State Management Refactoring
+# 03 - State Management (Zustand Store Refactoring)
 
-> **Time**: ~1.5 hours  
-> **Priority**: HIGH - Clean state = predictable app  
-> **Difficulty**: Medium-Hard
+## 🎯 Goal
 
----
+Clean up the Zustand store to be type-safe, well-organized, and maintainable.
 
-## 📋 Overview
-
-Your current `useStickyStore.ts` is a **monolith** - it handles everything:
-
-- Notes state
-- User data
-- Coordinates
-- Form visibility
-- Other users' cursors
-- Note selection
-
-This violates the **Single Responsibility Principle** and makes the code:
-
-- Hard to test
-- Hard to debug
-- Hard to reason about
-- Performance issues (re-renders on any change)
+**Why?** Your store is the heart of your app. A messy store = messy app.
 
 ---
 
-## 🔍 Current State Analysis
+## Current Problems
+
+### Problem 1: Mixed Concerns
+
+Your store does EVERYTHING:
+
+- Note CRUD operations
+- User data management
+- Remote cursor tracking
+- UI state (form visibility, selections)
+- Dev utilities (dummy notes)
+
+### Problem 2: Inconsistent Action Names
 
 ```typescript
-// Current store has 18+ properties and 10+ methods!
-interface StickyStore {
-  notes: StickyNote[];
-  userData: UserData | null;
-  coordinates: NoteCoordinates | null;
-  showForm: boolean;
-  selectNoteId: string | null;
-  editNote: Partial<StickyNote> | null;
-  otherUsers: OtherUsers;
-  offSet: NoteCoordinates | null;
-  isDummyNotesAdded: boolean;
-
-  handleNoteDelete: (noteId: string) => void;
-  handleNoteEdit: (noteId: string) => void;
-  setStore: (updates: Partial<StickyStore>) => void;
-  addNote: (newNote: StickyNote) => void;
-  addDummyNotes: () => void;
-  updateUserData: (userName: string, roomId) => void;
-  updateExistingNote: (updateNote: Partial<StickyNote>) => void;
-  updateOtherUsers: (userId: string, data: OtherUserCursor) => void;
-  deleteOtherUsers: (userId: string) => void;
-  updateNote: (id: string, data: Partial<StickyNote>) => void;
-}
+handleNoteDelete; // "handle" prefix suggests event handler
+handleNoteEdit; // But it's actually a store action
+updateExistingNote; // Redundant "existing"
+deleteOtherUsers; // Plural but takes single userId
 ```
 
-### Problems:
+### Problem 3: Wrong Return Types
 
-1. **Too many responsibilities** - Notes, users, UI state all mixed
-2. **Generic `setStore`** - No type safety, any change allowed
-3. **Inconsistent naming** - `handleNoteDelete` vs `deleteOtherUsers`
-4. **Missing types** - `roomId` parameter has no type
-5. **Persistence overkill** - Everything persisted, even transient state
+```typescript
+deleteOtherUsers: (userId): Partial<StickyStore> => {
+  // Returns nothing, but type says Partial<StickyStore>
+};
+```
+
+### Problem 4: Redundant Actions
+
+```typescript
+updateNote; // Updates note by id
+updateExistingNote; // Does the same thing!
+```
 
 ---
 
-## 🎯 Target Architecture
+## The Solution: Refactored Store
 
-Split into **3 focused stores**:
+### New File Structure:
 
 ```
 store/
-├── use-notes-store.ts    # Notes CRUD + selection
-├── use-user-store.ts     # Current user + other users
-└── use-ui-store.ts       # UI state (forms, modals, etc.)
+├── index.ts              # Re-exports
+├── useStickyStore.ts     # Main store (simplified)
+├── slices/
+│   ├── noteSlice.ts      # Note state & actions
+│   ├── userSlice.ts      # User state & actions
+│   └── uiSlice.ts        # UI state & actions
+└── types.ts              # Store-specific types (optional)
 ```
+
+**But for your app size**, one well-organized file is fine. Let's fix the current one first.
 
 ---
 
-## 📝 Step-by-Step Implementation
+## Step 1: Understand Zustand Slices Pattern
 
-### Step 1: Create `store/use-notes-store.ts`
+### What is a Slice?
+
+A "slice" is a portion of your store that manages related state and actions.
 
 ```typescript
-/**
- * Notes Store
- *
- * Manages all sticky note state.
- * Single responsibility: CRUD operations for notes.
- */
+// Instead of one giant store...
+const useStore = create((set, get) => ({
+  // 50+ fields and methods mixed together
+}));
+
+// ...you can organize into logical groups:
+const noteSlice = (set, get) => ({
+  notes: [],
+  addNote: (note) => set(...),
+  // All note-related stuff
+});
+
+const userSlice = (set, get) => ({
+  userData: null,
+  updateUserData: (name, room) => set(...),
+  // All user-related stuff
+});
+```
+
+### Why Slices?
+
+1. **Easier to understand** - Related things are together
+2. **Easier to test** - Test each slice independently
+3. **Easier to maintain** - Know where to look for things
+
+---
+
+## Step 2: Refactored Store Code
+
+Here's the complete refactored store:
+
+```typescript
+// store/useStickyStore.ts
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type { StickyNote } from "@/types";
+import { persist } from "zustand/middleware";
+import type {
+  StickyNote,
+  Position,
+  UserData,
+  RemoteCursor,
+  RemoteCursors,
+} from "@/types";
+import { dummyNotes } from "@/constants/dummyData";
 
-// ============================================
+// ============================================================================
 // TYPES
-// ============================================
+// ============================================================================
 
-interface NotesState {
-  /** All notes in the current room */
+interface StickyStoreState {
+  // Note State
   notes: StickyNote[];
-  /** Currently selected note ID */
+
+  // User State
+  userData: UserData | null;
+  remoteCursors: RemoteCursors;
+
+  // UI State
+  isFormOpen: boolean;
   selectedNoteId: string | null;
+  editingNote: StickyNote | null;
+  formPosition: Position | null;
+
+  // Internal
+  _isDummyDataLoaded: boolean;
 }
 
-interface NotesActions {
-  /** Add a new note */
+interface StickyStoreActions {
+  // Generic setter for simple updates
+  setState: (updates: Partial<StickyStoreState>) => void;
+
+  // Note Actions
   addNote: (note: StickyNote) => void;
-  /** Update an existing note */
-  updateNote: (id: string, updates: Partial<StickyNote>) => void;
-  /** Delete a note by ID */
-  deleteNote: (id: string) => void;
-  /** Set multiple notes at once (e.g., from server) */
-  setNotes: (notes: StickyNote[]) => void;
-  /** Select a note */
-  selectNote: (id: string | null) => void;
-  /** Clear all notes */
-  clearNotes: () => void;
+  updateNote: (noteId: string, changes: Partial<StickyNote>) => void;
+  deleteNote: (noteId: string) => void;
+  startEditingNote: (noteId: string) => void;
+
+  // User Actions
+  setUserData: (userName: string, roomId: string) => void;
+
+  // Remote Cursor Actions
+  updateRemoteCursor: (userId: string, cursor: Partial<RemoteCursor>) => void;
+  removeRemoteCursor: (userId: string) => void;
+
+  // UI Actions
+  openNoteForm: (position: Position, note?: StickyNote) => void;
+  closeNoteForm: () => void;
+  selectNote: (noteId: string | null) => void;
+
+  // Dev/Demo
+  loadDummyData: () => void;
 }
 
-type NotesStore = NotesState & NotesActions;
+export type StickyStore = StickyStoreState & StickyStoreActions;
 
-// ============================================
+// ============================================================================
 // INITIAL STATE
-// ============================================
+// ============================================================================
 
-const initialState: NotesState = {
+const initialState: StickyStoreState = {
   notes: [],
+  userData: null,
+  remoteCursors: {},
+  isFormOpen: false,
   selectedNoteId: null,
+  editingNote: null,
+  formPosition: null,
+  _isDummyDataLoaded: false,
 };
 
-// ============================================
-// STORE
-// ============================================
+// ============================================================================
+// STORE IMPLEMENTATION
+// ============================================================================
 
-export const useNotesStore = create<NotesStore>()(
+export const useStickyStore = create<StickyStore>()(
   persist(
     (set, get) => ({
       ...initialState,
+
+      // ========================================
+      // GENERIC SETTER
+      // ========================================
+
+      setState: (updates) => {
+        set((state) => ({ ...state, ...updates }));
+      },
+
+      // ========================================
+      // NOTE ACTIONS
+      // ========================================
 
       addNote: (note) => {
         set((state) => ({
@@ -145,597 +209,405 @@ export const useNotesStore = create<NotesStore>()(
         }));
       },
 
-      updateNote: (id, updates) => {
+      updateNote: (noteId, changes) => {
         set((state) => ({
           notes: state.notes.map((note) =>
-            note.id === id ? { ...note, ...updates } : note
+            note.id === noteId ? { ...note, ...changes } : note
           ),
         }));
       },
 
-      deleteNote: (id) => {
+      deleteNote: (noteId) => {
         set((state) => ({
-          notes: state.notes.filter((note) => note.id !== id),
-          // Clear selection if deleting selected note
+          notes: state.notes.filter((note) => note.id !== noteId),
+          // Also clear selection if deleting selected note
           selectedNoteId:
-            state.selectedNoteId === id ? null : state.selectedNoteId,
+            state.selectedNoteId === noteId ? null : state.selectedNoteId,
         }));
       },
 
-      setNotes: (notes) => {
-        set({ notes });
+      startEditingNote: (noteId) => {
+        const note = get().notes.find((n) => n.id === noteId);
+        if (!note) return;
+
+        set({
+          isFormOpen: true,
+          editingNote: note,
+          formPosition: { x: note.x, y: note.y },
+        });
       },
 
-      selectNote: (id) => {
-        set({ selectedNoteId: id });
+      // ========================================
+      // USER ACTIONS
+      // ========================================
+
+      setUserData: (userName, roomId) => {
+        set({
+          userData: { userName, roomId },
+        });
       },
 
-      clearNotes: () => {
-        set(initialState);
-      },
-    }),
-    {
-      name: "sticky-notes-storage",
-      storage: createJSONStorage(() => localStorage),
-      // Only persist notes, not selection state
-      partialize: (state) => ({ notes: state.notes }),
-    }
-  )
-);
+      // ========================================
+      // REMOTE CURSOR ACTIONS
+      // ========================================
 
-// ============================================
-// SELECTORS
-// ============================================
-
-/**
- * Get a specific note by ID.
- * Use outside of components for event handlers.
- */
-export const getNoteById = (id: string): StickyNote | undefined => {
-  return useNotesStore.getState().notes.find((note) => note.id === id);
-};
-
-/**
- * Get the currently selected note.
- */
-export const getSelectedNote = (): StickyNote | undefined => {
-  const { notes, selectedNoteId } = useNotesStore.getState();
-  return notes.find((note) => note.id === selectedNoteId);
-};
-```
-
-### 🧠 Why This Design?
-
-| Decision                       | Reason                             |
-| ------------------------------ | ---------------------------------- |
-| Separate state & actions types | Clear contract, easier testing     |
-| `initialState` constant        | Easy to reset, clear defaults      |
-| `partialize` in persist        | Don't persist UI state (selection) |
-| Selectors outside hook         | Can be used in event handlers      |
-
----
-
-### Step 2: Create `store/use-user-store.ts`
-
-```typescript
-/**
- * User Store
- *
- * Manages current user and other users' presence.
- * Handles real-time cursor positions.
- */
-
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type { UserData, OtherUsers, OtherUserCursor } from "@/types";
-
-// ============================================
-// TYPES
-// ============================================
-
-interface UserState {
-  /** Current user's data */
-  currentUser: UserData | null;
-  /** Other users in the room (cursors, etc.) */
-  otherUsers: OtherUsers;
-}
-
-interface UserActions {
-  /** Set current user data */
-  setCurrentUser: (user: UserData | null) => void;
-  /** Update current user's room */
-  setCurrentRoom: (roomId: string) => void;
-  /** Add or update another user's cursor */
-  upsertOtherUser: (userId: string, data: Partial<OtherUserCursor>) => void;
-  /** Remove a user (when they leave) */
-  removeOtherUser: (userId: string) => void;
-  /** Clear all other users */
-  clearOtherUsers: () => void;
-  /** Clear entire store (logout) */
-  reset: () => void;
-}
-
-type UserStore = UserState & UserActions;
-
-// ============================================
-// INITIAL STATE
-// ============================================
-
-const initialState: UserState = {
-  currentUser: null,
-  otherUsers: {},
-};
-
-// ============================================
-// STORE
-// ============================================
-
-export const useUserStore = create<UserStore>()(
-  persist(
-    (set) => ({
-      ...initialState,
-
-      setCurrentUser: (user) => {
-        set({ currentUser: user });
-      },
-
-      setCurrentRoom: (roomId) => {
+      updateRemoteCursor: (userId, cursorData) => {
         set((state) => ({
-          currentUser: state.currentUser
-            ? { ...state.currentUser, roomId }
-            : null,
-        }));
-      },
-
-      upsertOtherUser: (userId, data) => {
-        set((state) => ({
-          otherUsers: {
-            ...state.otherUsers,
+          remoteCursors: {
+            ...state.remoteCursors,
             [userId]: {
-              // Provide defaults for new users
-              userName: "Unknown",
-              x: 0,
-              y: 0,
-              color: "#ff4757",
-              // Merge with existing data
-              ...state.otherUsers[userId],
-              ...data,
+              ...state.remoteCursors[userId],
+              ...cursorData,
             },
           },
         }));
       },
 
-      removeOtherUser: (userId) => {
+      removeRemoteCursor: (userId) => {
         set((state) => {
-          const { [userId]: _, ...remainingUsers } = state.otherUsers;
-          return { otherUsers: remainingUsers };
+          const { [userId]: _, ...remaining } = state.remoteCursors;
+          return { remoteCursors: remaining };
         });
       },
 
-      clearOtherUsers: () => {
-        set({ otherUsers: {} });
+      // ========================================
+      // UI ACTIONS
+      // ========================================
+
+      openNoteForm: (position, note) => {
+        set({
+          isFormOpen: true,
+          formPosition: position,
+          editingNote: note || null,
+        });
       },
 
-      reset: () => {
-        set(initialState);
+      closeNoteForm: () => {
+        set({
+          isFormOpen: false,
+          formPosition: null,
+          editingNote: null,
+        });
+      },
+
+      selectNote: (noteId) => {
+        set({ selectedNoteId: noteId });
+      },
+
+      // ========================================
+      // DEV/DEMO
+      // ========================================
+
+      loadDummyData: () => {
+        if (get()._isDummyDataLoaded) return;
+        if (get().notes.length > 0) return;
+
+        set({
+          notes: dummyNotes,
+          _isDummyDataLoaded: true,
+        });
       },
     }),
     {
-      name: "sticky-user-storage",
-      storage: createJSONStorage(() => localStorage),
-      // Only persist current user, not other users
-      partialize: (state) => ({ currentUser: state.currentUser }),
+      name: "sticky-store",
+      // Only persist these fields (not UI state)
+      partialize: (state) => ({
+        notes: state.notes,
+        userData: state.userData,
+        _isDummyDataLoaded: state._isDummyDataLoaded,
+      }),
     }
   )
 );
-
-// ============================================
-// SELECTORS
-// ============================================
-
-/**
- * Get count of other users in the room.
- */
-export const getOtherUsersCount = (): number => {
-  return Object.keys(useUserStore.getState().otherUsers).length;
-};
-
-/**
- * Check if current user has set up their profile.
- */
-export const isUserSetup = (): boolean => {
-  const user = useUserStore.getState().currentUser;
-  return Boolean(user?.userName);
-};
 ```
-
-### 🧠 Why This Design?
-
-| Decision                   | Reason                                        |
-| -------------------------- | --------------------------------------------- |
-| `upsertOtherUser`          | Update if exists, create if not               |
-| Destructuring removal      | `const { [userId]: _, ...rest }` is immutable |
-| Don't persist `otherUsers` | They're transient - rebuild on room join      |
 
 ---
 
-### Step 3: Create `store/use-ui-store.ts`
+## Step 3: Understanding the Changes
+
+### Change 1: Better Naming
+
+| Before             | After            | Why                                             |
+| ------------------ | ---------------- | ----------------------------------------------- |
+| `showForm`         | `isFormOpen`     | Boolean naming convention (`is*`, `has*`)       |
+| `selectNoteId`     | `selectedNoteId` | Past tense for state (`selected`, not `select`) |
+| `editNote` (state) | `editingNote`    | Present participle for ongoing state            |
+| `coordinates`      | `formPosition`   | More specific - what coordinates?               |
+| `otherUsers`       | `remoteCursors`  | More descriptive of what it actually is         |
+| `setStore`         | `setState`       | Standard naming convention                      |
+
+### Change 2: Clearer Actions
+
+| Before               | After                | Why                                         |
+| -------------------- | -------------------- | ------------------------------------------- |
+| `handleNoteDelete`   | `deleteNote`         | Actions should be verbs, not event handlers |
+| `handleNoteEdit`     | `startEditingNote`   | Clearer what it does                        |
+| `updateExistingNote` | (removed)            | `updateNote` handles this                   |
+| `updateOtherUsers`   | `updateRemoteCursor` | Singular, more accurate                     |
+| `deleteOtherUsers`   | `removeRemoteCursor` | Singular, better verb                       |
+
+### Change 3: UI Actions
+
+New dedicated UI actions:
 
 ```typescript
-/**
- * UI Store
- *
- * Manages ephemeral UI state.
- * NOT persisted - resets on page refresh.
- */
-
-import { create } from "zustand";
-import type { NoteCoordinates, StickyNote } from "@/types";
-
-// ============================================
-// TYPES
-// ============================================
-
-interface NoteFormState {
-  /** Is the note form visible? */
-  isOpen: boolean;
-  /** Position where the form was opened (for new notes) */
-  position: NoteCoordinates | null;
-  /** Note being edited (null for new notes) */
-  editingNote: StickyNote | null;
-}
-
-interface UIState {
-  /** Note form state */
-  noteForm: NoteFormState;
-  /** Is the canvas currently being dragged? */
-  isDragging: boolean;
-  /** ID of the note currently being dragged */
-  draggingNoteId: string | null;
-}
-
-interface UIActions {
-  /** Open form to create a new note at position */
-  openNoteForm: (position: NoteCoordinates) => void;
-  /** Open form to edit an existing note */
-  openEditForm: (note: StickyNote) => void;
-  /** Close the note form */
-  closeNoteForm: () => void;
-  /** Set dragging state */
-  setDragging: (isDragging: boolean) => void;
-  /** Set which note is being dragged */
-  setDraggingNote: (noteId: string | null) => void;
-  /** Reset all UI state */
-  resetUI: () => void;
-}
-
-type UIStore = UIState & UIActions;
-
-// ============================================
-// INITIAL STATE
-// ============================================
-
-const initialNoteFormState: NoteFormState = {
-  isOpen: false,
-  position: null,
-  editingNote: null,
-};
-
-const initialState: UIState = {
-  noteForm: initialNoteFormState,
-  isDragging: false,
-  draggingNoteId: null,
-};
-
-// ============================================
-// STORE
-// ============================================
-
-export const useUIStore = create<UIStore>()((set) => ({
-  ...initialState,
-
-  openNoteForm: (position) => {
-    set({
-      noteForm: {
-        isOpen: true,
-        position,
-        editingNote: null,
-      },
-    });
-  },
-
-  openEditForm: (note) => {
-    set({
-      noteForm: {
-        isOpen: true,
-        position: { x: note.x, y: note.y },
-        editingNote: note,
-      },
-    });
-  },
-
-  closeNoteForm: () => {
-    set({ noteForm: initialNoteFormState });
-  },
-
-  setDragging: (isDragging) => {
-    set({ isDragging });
-  },
-
-  setDraggingNote: (noteId) => {
-    set({
-      draggingNoteId: noteId,
-      isDragging: noteId !== null,
-    });
-  },
-
-  resetUI: () => {
-    set(initialState);
-  },
-}));
-
-// ============================================
-// CONVENIENCE SELECTORS
-// ============================================
-
-/**
- * Check if we're currently editing a note.
- */
-export const isEditingNote = (): boolean => {
-  return useUIStore.getState().noteForm.editingNote !== null;
-};
-
-/**
- * Check if any modal/form is open.
- */
-export const hasOpenModal = (): boolean => {
-  return useUIStore.getState().noteForm.isOpen;
-};
+openNoteForm(position, note?)  // Opens form at position, optionally for editing
+closeNoteForm()                // Closes and clears form state
+selectNote(noteId)             // Selects a note (null to deselect)
 ```
 
-### 🧠 Why This Design?
+**Why?** Instead of manually setting multiple state fields, call one action.
 
-| Decision                        | Reason                                   |
-| ------------------------------- | ---------------------------------------- |
-| No `persist`                    | UI state should not survive page refresh |
-| Nested `noteForm` object        | Groups related state together            |
-| `initialNoteFormState` separate | Can reset just the form                  |
-| Action names are verbs          | `openNoteForm` not `setNoteFormOpen`     |
+### Change 4: Partial Persistence
+
+```typescript
+partialize: (state) => ({
+  notes: state.notes,
+  userData: state.userData,
+  _isDummyDataLoaded: state._isDummyDataLoaded,
+}),
+```
+
+**Why?** UI state (`isFormOpen`, `selectedNoteId`) shouldn't persist across sessions.
 
 ---
 
-### Step 4: Update Components to Use New Stores
+## Step 4: Using the New Store
 
-Now update your components to use the new stores. Here's how:
-
-**Before (old monolithic store):**
+### Before (scattered state updates):
 
 ```typescript
-const { notes, userData, showForm, coordinates, otherUsers, setStore } =
+// In a component
+const { setStore } = useStickyStore();
+
+// Opening form - setting 3 fields manually
+setStore({
+  showForm: true,
+  coordinates: { x: 100, y: 200 },
+  editNote: null,
+});
+
+// Closing form - setting 3 fields manually
+setStore({
+  showForm: false,
+  coordinates: null,
+  editNote: null,
+});
+```
+
+### After (single action calls):
+
+```typescript
+// In a component
+const { openNoteForm, closeNoteForm, selectNote } = useStickyStore();
+
+// Opening form
+openNoteForm({ x: 100, y: 200 });
+
+// Opening form for editing
+openNoteForm({ x: note.x, y: note.y }, note);
+
+// Closing form
+closeNoteForm();
+```
+
+---
+
+## Step 5: Update Components to Use New Store
+
+### Update `note-form.tsx`:
+
+```typescript
+// Before
+const { setStore, coordinates, editNote } = useStickyStore(
+  useShallow((state) => ({
+    coordinates: state.coordinates,
+    editNote: state.editNote,
+    setStore: state.setStore,
+  }))
+);
+
+// Close handler
+const handleClose = () => {
+  setStore({ showForm: false, editNote: null });
+};
+
+// After
+const { closeNoteForm, formPosition, editingNote, addNote, updateNote } =
   useStickyStore(
     useShallow((state) => ({
-      notes: state.notes,
-      userData: state.userData,
-      showForm: state.showForm,
-      coordinates: state.coordinates,
-      otherUsers: state.otherUsers,
-      setStore: state.setStore,
+      formPosition: state.formPosition,
+      editingNote: state.editingNote,
+      closeNoteForm: state.closeNoteForm,
+      addNote: state.addNote,
+      updateNote: state.updateNote,
     }))
   );
+
+// Close handler
+const handleClose = () => {
+  closeNoteForm();
+};
 ```
 
-**After (new focused stores):**
+### Update `sticky-note.tsx`:
 
 ```typescript
-// Only import what you need
-import { useNotesStore } from "@/store/use-notes-store";
-import { useUserStore } from "@/store/use-user-store";
-import { useUIStore } from "@/store/use-ui-store";
+// Before
+const { handleNoteEdit, handleNoteDelete } = useStickyStore(...);
 
-// Use direct selectors (better performance)
-const notes = useNotesStore((state) => state.notes);
-const selectedNoteId = useNotesStore((state) => state.selectedNoteId);
+// After
+const { startEditingNote, deleteNote } = useStickyStore(
+  useShallow((state) => ({
+    startEditingNote: state.startEditingNote,
+    deleteNote: state.deleteNote,
+  }))
+);
+```
 
-const currentUser = useUserStore((state) => state.currentUser);
-const otherUsers = useUserStore((state) => state.otherUsers);
+### Update `page.tsx`:
 
-const noteForm = useUIStore((state) => state.noteForm);
+```typescript
+// Before
+const { showForm, coordinates, selectNoteId, setStore, otherUsers } = useStickyStore(...);
+
+// After
+const {
+  isFormOpen,
+  formPosition,
+  selectedNoteId,
+  selectNote,
+  remoteCursors,
+  closeNoteForm,
+  openNoteForm,
+} = useStickyStore(
+  useShallow((state) => ({
+    isFormOpen: state.isFormOpen,
+    formPosition: state.formPosition,
+    selectedNoteId: state.selectedNoteId,
+    selectNote: state.selectNote,
+    remoteCursors: state.remoteCursors,
+    closeNoteForm: state.closeNoteForm,
+    openNoteForm: state.openNoteForm,
+  }))
+);
 ```
 
 ---
 
-### Step 5: Create Custom Hook Selectors (Optional but Recommended)
+## Step 6: Selector Best Practices
 
-For commonly used combinations, create custom hooks:
+### Bad: Selecting entire store
 
 ```typescript
-// store/hooks.ts
+// ❌ Re-renders on ANY state change
+const store = useStickyStore();
+```
 
-import { useNotesStore } from "./use-notes-store";
-import { useUserStore } from "./use-user-store";
-import { useUIStore } from "./use-ui-store";
-import { useShallow } from "zustand/shallow";
+### Good: Select only what you need
 
-/**
- * Get notes with the currently selected note flagged.
- */
-export function useNotesWithSelection() {
-  return useNotesStore(
+```typescript
+// ✅ Only re-renders when these specific values change
+const { notes, selectedNoteId } = useStickyStore(
+  useShallow((state) => ({
+    notes: state.notes,
+    selectedNoteId: state.selectedNoteId,
+  }))
+);
+```
+
+### Even Better: Create custom selector hooks
+
+```typescript
+// hooks/useNotes.ts
+export function useNotes() {
+  return useStickyStore(
     useShallow((state) => ({
       notes: state.notes,
-      selectedNoteId: state.selectedNoteId,
+      addNote: state.addNote,
+      updateNote: state.updateNote,
+      deleteNote: state.deleteNote,
     }))
   );
 }
 
-/**
- * Get all user-related state.
- */
-export function useUsers() {
-  return useUserStore(
-    useShallow((state) => ({
-      currentUser: state.currentUser,
-      otherUsers: state.otherUsers,
-    }))
-  );
-}
-
-/**
- * Get note form state and actions.
- */
+// hooks/useNoteForm.ts
 export function useNoteForm() {
-  const noteForm = useUIStore((state) => state.noteForm);
-  const openNoteForm = useUIStore((state) => state.openNoteForm);
-  const openEditForm = useUIStore((state) => state.openEditForm);
-  const closeNoteForm = useUIStore((state) => state.closeNoteForm);
-
-  return {
-    ...noteForm,
-    open: openNoteForm,
-    openEdit: openEditForm,
-    close: closeNoteForm,
-  };
-}
-
-/**
- * Get drag state.
- */
-export function useDragState() {
-  return useUIStore(
+  return useStickyStore(
     useShallow((state) => ({
-      isDragging: state.isDragging,
-      draggingNoteId: state.draggingNoteId,
-      setDraggingNote: state.setDraggingNote,
+      isFormOpen: state.isFormOpen,
+      editingNote: state.editingNote,
+      formPosition: state.formPosition,
+      openNoteForm: state.openNoteForm,
+      closeNoteForm: state.closeNoteForm,
     }))
   );
 }
+
+// Usage in components:
+const { notes, addNote } = useNotes();
+const { isFormOpen, openNoteForm } = useNoteForm();
 ```
 
 ---
 
-### Step 6: Delete Old Store
+## 🎓 What You Learned
 
-After migrating all components:
+### 1. Zustand Best Practices
 
-1. Remove `store/useStickyStore.ts`
-2. Update all imports
+- **Name state as nouns** (`notes`, `userData`, `selectedNoteId`)
+- **Name actions as verbs** (`addNote`, `deleteNote`, `selectNote`)
+- **Boolean state uses `is*` prefix** (`isFormOpen`, `isLoading`)
+- **Use `useShallow` to prevent unnecessary re-renders**
+- **Use `partialize` to control what gets persisted**
 
----
+### 2. Action Design Principles
 
-## 🔄 Migration Mapping
+- **Single Responsibility** - Each action does one thing
+- **Minimal Parameters** - Actions take only what they need
+- **Side-Effect Free** - Actions only update state, no API calls
 
-| Old                            | New                                        |
-| ------------------------------ | ------------------------------------------ |
-| `notes`                        | `useNotesStore(s => s.notes)`              |
-| `selectNoteId`                 | `useNotesStore(s => s.selectedNoteId)`     |
-| `userData`                     | `useUserStore(s => s.currentUser)`         |
-| `otherUsers`                   | `useUserStore(s => s.otherUsers)`          |
-| `showForm`                     | `useUIStore(s => s.noteForm.isOpen)`       |
-| `coordinates`                  | `useUIStore(s => s.noteForm.position)`     |
-| `editNote`                     | `useUIStore(s => s.noteForm.editingNote)`  |
-| `setStore({ showForm: true })` | `useUIStore.getState().openNoteForm(pos)`  |
-| `handleNoteDelete(id)`         | `useNotesStore.getState().deleteNote(id)`  |
-| `handleNoteEdit(id)`           | `useUIStore.getState().openEditForm(note)` |
+### 3. State Organization
+
+```typescript
+// Group related state together in your mental model:
+
+// === Data State (persisted) ===
+notes: StickyNote[]
+userData: UserData | null
+
+// === Remote State (synced with server) ===
+remoteCursors: RemoteCursors
+
+// === UI State (not persisted) ===
+isFormOpen: boolean
+selectedNoteId: string | null
+editingNote: StickyNote | null
+formPosition: Position | null
+```
 
 ---
 
 ## ✅ Verification Checklist
 
-After refactoring, verify:
+After refactoring the store:
 
-- [ ] Notes persist after page refresh
-- [ ] Current user persists after page refresh
-- [ ] Other users DO NOT persist (they're rebuilt on join)
-- [ ] Note form opens at correct position
-- [ ] Note editing loads correct data
-- [ ] Note selection works
-- [ ] Dragging notes works
-- [ ] Deleting notes clears selection if selected
+```bash
+# 1. TypeScript check
+npx tsc --noEmit
 
----
+# 2. Test in browser
+npm run dev
 
-## 🧠 Deep Dive: Zustand Best Practices
-
-### 1. Avoid Storing Derived State
-
-```typescript
-// ❌ Bad - derived state in store
-const store = create((set) => ({
-  notes: [],
-  noteCount: 0, // This is derived!
-  addNote: (note) =>
-    set((s) => ({
-      notes: [...s.notes, note],
-      noteCount: s.notes.length + 1, // Have to update both!
-    })),
-}));
-
-// ✅ Good - derive in component or selector
-const store = create((set) => ({
-  notes: [],
-  addNote: (note) =>
-    set((s) => ({
-      notes: [...s.notes, note],
-    })),
-}));
-
-// Use in component
-const notes = useStore((s) => s.notes);
-const noteCount = notes.length; // Derived when needed
-```
-
-### 2. Use Immer for Complex Updates
-
-```typescript
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
-
-const useStore = create(
-  immer((set) => ({
-    nested: { deep: { value: 0 } },
-    increment: () =>
-      set((state) => {
-        // Mutate directly! Immer handles immutability
-        state.nested.deep.value += 1;
-      }),
-  }))
-);
-```
-
-### 3. Subscribe to Changes Outside React
-
-```typescript
-// In an event handler or utility
-const unsubscribe = useNotesStore.subscribe(
-  (state) => state.notes,
-  (notes) => {
-    console.log("Notes changed:", notes);
-  }
-);
+# 3. Check these scenarios work:
+# - Create a new note
+# - Edit an existing note
+# - Delete a note
+# - See other users' cursors
+# - Form opens at correct position
+# - Selecting a note shows action buttons
 ```
 
 ---
 
-## 📚 What You Learned
-
-1. **Single Responsibility Stores** - Each store does one thing
-2. **Separation of Concerns** - Persisted vs ephemeral state
-3. **Proper TypeScript Patterns** - Separate State & Actions types
-4. **Zustand Patterns** - `partialize`, selectors, subscriptions
-5. **Performance** - Only subscribe to what you need
-6. **Testing** - Smaller stores are easier to test
-
----
-
-## ⏭️ Next Step
-
-Now that your state is clean, move on to:
-**[04-SERVER-ACTIONS.md](./04-SERVER-ACTIONS.md)** - Refactor server actions
-
----
-
-## 🔗 Resources
-
-- [Zustand Documentation](https://docs.pmnd.rs/zustand/getting-started/introduction)
-- [Zustand Persist Middleware](https://docs.pmnd.rs/zustand/integrations/persisting-store-data)
-- [React State Management Comparison](https://react.dev/learn/managing-state)
+**Next: [04-SERVER-ACTIONS.md](./04-SERVER-ACTIONS.md)** - Let's clean up server actions!

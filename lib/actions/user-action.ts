@@ -1,18 +1,19 @@
 "use server";
 
-import { db } from "@/lib/db";
+import { db } from "../db";
 import type { Prisma } from "@prisma/client";
-import { actionWrapper,  ensure } from "../utils";
+import { actionWrapper, ensure } from "../utils";
 import { getAuthUser } from "./actions-utils";
+import { UserData } from "../../types/types";
 
 // get any of user's data - (for auth user no id needed or else provide id)
-export async function getUserData(userId?: string, fields: Prisma.UserSelect) {
+export async function getUserData(fields: Prisma.UserSelect, userId?: string) {
   return actionWrapper(async () => {
     // Step 1. Get the auth user
     const user = await getAuthUser();
 
     // Step 2. Get the requested data
-    let user = await db.user.findUnique({
+    const userData = await db.user.findUnique({
       where: {
         clerkId: userId || user?.id,
       },
@@ -20,7 +21,7 @@ export async function getUserData(userId?: string, fields: Prisma.UserSelect) {
     });
 
     // Step 3. Return the data
-    return ensure(user, "User not found");
+    return ensure(userData, "User not found");
   });
 }
 
@@ -42,4 +43,3 @@ export async function updateUserData(data: Prisma.UserUpdateInput) {
     return ensure(updatedUser, "User not found");
   });
 }
-

@@ -1,36 +1,15 @@
 import { dummyNotes } from "@/constants/dummyData";
 import type {
-  NoteCoordinates,
-  OtherUserCursor,
-  OtherUsers,
+  Position,
   StickyNote,
   UserData,
-} from "@/types/types";
+  RemoteCursors,
+  RemoteCursor,
+  StickyStore,
+  StickyStoreState,
+} from "@/types/index";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-export interface StickyStore {
-  notes: StickyNote[];
-  userData: UserData | null;
-  coordinates: NoteCoordinates | null;
-  showForm: boolean;
-  selectNoteId: string | null;
-  editNote: Partial<StickyNote> | null;
-  otherUsers: OtherUsers;
-  offSet: NoteCoordinates | null;
-  isDummyNotesAdded: boolean;
-
-  handleNoteDelete: (noteId: string) => void;
-  handleNoteEdit: (noteId: string) => void;
-  setStore: (updates: Partial<StickyStore>) => void;
-  addNote: (newNote: StickyNote) => void;
-  addDummyNotes: () => void;
-  updateUserData: (userName: string, roomId) => void;
-  updateExistingNote: (updateNote: Partial<StickyNote>) => void;
-  updateOtherUsers: (userId: string, data: OtherUserCursor) => void;
-  deleteOtherUsers: (userId: string) => void;
-  updateNote: (id: string, data: Partial<StickyNote>) => void;
-}
 
 // pass the persist middleware into create(...) and initialize all fields/handlers
 export const useStickyStore = create<StickyStore>()(
@@ -43,18 +22,15 @@ export const useStickyStore = create<StickyStore>()(
       selectNoteId: null,
       editNote: null,
       otherUsers: {},
-      offSet: null,
+      // offSet: null,
       isDummyNotesAdded: false,
 
       // For any Logic to update state
-      setStore: (updates) => {
-        set((state) => ({
-          ...state,
-          ...updates,
-        }));
+      setStore: (updates: Partial<StickyStoreState>) => {
+        set(updates);
       },
 
-      updateNote: (id, data) => {
+      updateNote: (id: string, data: Partial<StickyNote>) => {
         set((state) => ({
           notes: state.notes.map((note) =>
             note.id === id ? { ...note, ...data } : note
@@ -71,17 +47,18 @@ export const useStickyStore = create<StickyStore>()(
       },
 
       //update user data
-      updateUserData: (userName, roomId) => {
+      updateUserData: (userName: string, roomId: string) => {
         set(() => ({
           userData: {
-            userName: userName,
-            roomId: roomId,
+            userName,
+            roomId,
+            cursorColor: "#000000", // Default color, customize as needed
           },
         }));
       },
 
       //update other users postions and data
-      updateOtherUsers: (userId, data) => {
+      updateOtherUsers: (userId: string, data: RemoteCursor) => {
         // Find the current users and create a new otherUsers object with the updated entry
         console.log("UserName from the Socket ", data.userName);
         set((state) => {
@@ -93,9 +70,9 @@ export const useStickyStore = create<StickyStore>()(
         });
       },
 
-      deleteOtherUsers: (userId): Partial<StickyStore> => {
+      deleteOtherUsers: (userId: string) => {
         // Find current user delte it
-        const newData: OtherUsers = { ...get().otherUsers };
+        const newData: RemoteCursors = { ...get().otherUsers };
 
         delete newData[userId];
 
@@ -105,14 +82,14 @@ export const useStickyStore = create<StickyStore>()(
       },
 
       // Update notes array
-      addNote: (newNote) => {
+      addNote: (newNote: StickyNote) => {
         set((state) => ({
           notes: [...state.notes, newNote],
         }));
       },
 
       // update existing note
-      updateExistingNote: (updateNote) => {
+      updateExistingNote: (updateNote: Partial<StickyNote>) => {
         set((state) => ({
           notes: state.notes.map((n) => {
             return n.id === updateNote.id ? { ...n, ...updateNote } : n;
@@ -121,14 +98,14 @@ export const useStickyStore = create<StickyStore>()(
       },
 
       // If note delete is triggered
-      handleNoteDelete: (noteId) => {
+      deleteNote: (noteId: string) => {
         set((state) => ({
           notes: state.notes.filter((note) => note.id !== noteId),
         }));
       },
 
       // If note edit is triggered
-      handleNoteEdit: (noteId) => {
+      handleNoteEdit: (noteId: string) => {
         const note = get().notes.find((n) => n.id === noteId);
         if (note) {
           set(() => ({
@@ -137,6 +114,26 @@ export const useStickyStore = create<StickyStore>()(
             editNote: note,
           }));
         }
+      },
+
+      // Alias for type compatibility
+      updateOtherUser: (userId: string, data: RemoteCursor) => {
+        set((state) => {
+          const newOtherUsers = {
+            ...state.otherUsers,
+            [userId]: { ...(state.otherUsers[userId] || {}), ...data },
+          };
+          return { otherUsers: newOtherUsers };
+        });
+      },
+
+      // Alias for type compatibility
+      removeOtherUser: (userId: string) => {
+        const newData: RemoteCursors = { ...get().otherUsers };
+        delete newData[userId];
+        set(() => ({
+          otherUsers: { ...newData },
+        }));
       },
     }),
     {
