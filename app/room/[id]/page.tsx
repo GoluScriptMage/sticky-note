@@ -111,7 +111,7 @@ export default function CanvasPage() {
       try {
         const result = await getUserData({ username: true }, userId);
         if (result.data?.username) {
-          setUserData(result.data.username, roomId);
+          setUserData(result.data.username as unknown as string, roomId);
         }
       } catch (err) {
         console.error("Error fetching username:", err);
@@ -465,10 +465,10 @@ export default function CanvasPage() {
       {isFormOpen && formPosition && (
         <>
           <div
-            className="fixed inset-0 bg-black/20 z-[9998]"
+            className="fixed inset-0 bg-black/20 z-9998"
             onClick={closeNoteForm}
           />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
+          <div className="fixed inset-0 z-9999 flex items-center justify-center pointer-events-none">
             <div className="pointer-events-auto">
               <NoteForm socket={socket} />
             </div>

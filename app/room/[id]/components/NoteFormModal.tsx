@@ -15,11 +15,11 @@ export function NoteFormModal({ isOpen, onClose, children }: NoteFormModalProps)
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/20 z-[9998]"
+        className="fixed inset-0 bg-black/20 z-9998"
         onClick={onClose}
       />
       {/* Modal container */}
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
+      <div className="fixed inset-0 z-9999 flex items-center justify-center pointer-events-none">
         <div className="pointer-events-auto">
           {children}
         </div>

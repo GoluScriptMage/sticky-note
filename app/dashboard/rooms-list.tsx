@@ -115,7 +115,7 @@ export default function RoomsListDisplay() {
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shadow-sm flex-shrink-0"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0"
               style={{
                 background: `linear-gradient(135deg, ${
                   ROOM_COLORS[index % 5]

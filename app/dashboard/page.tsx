@@ -57,7 +57,7 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="flex h-screen items-center justify-center bg-linear-to-br from-gray-50 to-gray-100">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -71,7 +71,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-50">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
         {/* Header */}
         <motion.div
@@ -113,7 +113,7 @@ export default function Home() {
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <Search className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -165,7 +165,7 @@ export default function Home() {
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 py-4 sm:px-6 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
                     <Users className="w-5 h-5 text-white" />
                   </div>
                   <p className="font-semibold text-gray-900">Your Status</p>
@@ -215,7 +215,7 @@ export default function Home() {
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <p className="font-semibold text-gray-900">Quick Start</p>
@@ -271,7 +271,7 @@ export default function Home() {
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <Clock className="w-5 h-5 text-white" />
                   </div>
                   <p className="font-semibold text-gray-900">Recent Rooms</p>

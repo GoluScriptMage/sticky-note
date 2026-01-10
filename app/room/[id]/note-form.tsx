@@ -159,7 +159,7 @@ export default function NoteForm({ socket }: NoteFormProps) {
       onClick={(e) => e.stopPropagation()}
     >
       {/* Decorative header */}
-      <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-amber-100 to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-12 bg-linear-to-b from-amber-100 to-transparent pointer-events-none" />
 
       {/* Tape effect */}
       <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-16 h-6 bg-amber-200/60 rounded-b-lg shadow-sm" />

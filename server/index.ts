@@ -248,7 +248,7 @@ io.on("connection", (socket) => {
 });
 
 // Use dynamic port for deployment (Railway/Render assigns PORT env var)
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Socket.IO server running at:`);
   console.log(`  - Port: ${PORT}`);

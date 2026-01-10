@@ -47,7 +47,7 @@ export default function CreateRoomDisplay({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-lg font-bold text-gray-700">
+        <div className="w-10 h-10 rounded-full bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center text-lg font-bold text-gray-700">
           {(username || "A").charAt(0).toUpperCase()}
         </div>
         <div>
@@ -67,7 +67,7 @@ export default function CreateRoomDisplay({
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex items-center justify-center gap-2 w-full rounded-xl bg-linear-to-r from-amber-500 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

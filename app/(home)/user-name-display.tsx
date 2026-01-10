@@ -49,8 +49,8 @@ export default function UserNameDisplay() {
       try {
         const result = await getUserData({ username: true }, userId);
         if (result.data?.username) {
-          setCurrentUserName(result.data.username);
-          setUserData(result.data.username, "");
+          setCurrentUserName(result.data.username as unknown as string);
+          setUserData(result.data.username as unknown as string, "");
         }
       } catch (err) {
         console.error("Error fetching username:", err);
@@ -117,7 +117,7 @@ export default function UserNameDisplay() {
     return (
       <div className="space-y-5">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-full bg-linear-to-br from-amber-100 to-orange-100 flex items-center justify-center">
             <User className="w-5 h-5 text-amber-600" />
           </div>
           <div>
@@ -143,7 +143,7 @@ export default function UserNameDisplay() {
           </div>
           <button
             type="submit"
-            className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all active:scale-[0.98]"
+            className="w-full rounded-xl bg-linear-to-r from-amber-500 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all active:scale-[0.98]"
           >
             Save & Continue
           </button>
@@ -156,7 +156,7 @@ export default function UserNameDisplay() {
     <div className="space-y-4">
       {/* User Info */}
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-amber-500/25">
+        <div className="w-11 h-11 rounded-full bg-linear-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-amber-500/25">
           {currentUserName.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">

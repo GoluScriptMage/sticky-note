@@ -278,7 +278,7 @@ export default function StickyNoteComponent({
       {/* Content */}
       <div className="px-4 py-3 flex-1 overflow-auto">
         <p
-          className={`text-sm ${colorStyle.text} opacity-80 leading-relaxed whitespace-pre-wrap break-words`}
+          className={`text-sm ${colorStyle.text} opacity-80 leading-relaxed whitespace-pre-wrap wrap-break-word`}
         >
           {content}
         </p>
@@ -301,7 +301,7 @@ export default function StickyNoteComponent({
       {/* Corner fold effect */}
       <div className="absolute bottom-0 right-0 w-5 h-5 overflow-hidden pointer-events-none">
         <div
-          className={`absolute bottom-0 right-0 w-7 h-7 bg-gradient-to-br ${colorStyle.accent} transform rotate-45 translate-x-3.5 translate-y-3.5 shadow-inner`}
+          className={`absolute bottom-0 right-0 w-7 h-7 bg-linear-to-br ${colorStyle.accent} transform rotate-45 translate-x-3.5 translate-y-3.5 shadow-inner`}
         />
       </div>
     </motion.div>

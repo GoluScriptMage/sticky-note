@@ -26,7 +26,7 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-white to-orange-50">
+      <div className="flex h-screen items-center justify-center bg-linear-to-br from-amber-50 via-white to-orange-50">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -40,7 +40,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 overflow-hidden">
+    <div className="min-h-screen bg-linear-to-br from-amber-50 via-white to-orange-50 overflow-hidden">
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-200/30 rounded-full blur-3xl" />
@@ -66,7 +66,7 @@ export default function Home() {
             <div className="space-y-4">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-gray-900">
                 Bring ideas together on a{" "}
-                <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
+                <span className="bg-linear-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
                   shared canvas
                 </span>
               </h1>
@@ -84,7 +84,7 @@ export default function Home() {
                 transition={{ delay: 0.2 }}
                 className="rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 mb-3">
                   <Users className="w-5 h-5 text-white" />
                 </div>
                 <p className="font-semibold text-gray-900">Live cursors</p>
@@ -99,7 +99,7 @@ export default function Home() {
                 transition={{ delay: 0.3 }}
                 className="rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25 mb-3">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <p className="font-semibold text-gray-900">Instant rooms</p>
@@ -119,9 +119,9 @@ export default function Home() {
           >
             <div className="rounded-3xl border border-gray-200 bg-white shadow-2xl shadow-gray-200/50 overflow-hidden">
               {/* Card Header */}
-              <div className="border-b border-gray-100 px-6 py-5 bg-gradient-to-r from-gray-50 to-white">
+              <div className="border-b border-gray-100 px-6 py-5 bg-linear-to-r from-gray-50 to-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <MousePointerClick className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -151,7 +151,7 @@ export default function Home() {
                       </button>
                       <button
                         onClick={() => router.push("/sign-up")}
-                        className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/25 hover:shadow-xl transition-all active:scale-[0.98]"
+                        className="flex items-center justify-center gap-2 w-full rounded-xl bg-linear-to-r from-gray-900 to-gray-800 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/25 hover:shadow-xl transition-all active:scale-[0.98]"
                       >
                         Create free account
                         <ArrowRight className="w-4 h-4" />
