@@ -6,48 +6,73 @@ import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
-import { Pencil, Trash2, Check, X, ArrowRight, User } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  ArrowRight,
+  User,
+  Loader2,
+} from "lucide-react";
 
 export default function UserNameDisplay() {
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
-  const { userId } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const { userId, isLoaded } = useAuth();
 
-  const { setStore, userData } = useStickyStore(
+  const { setState, userData, setUserData } = useStickyStore(
     useShallow((state) => ({
-      setStore: state.setStore,
+      setState: state.setState,
       userData: state.userData,
+      setUserData: state.setUserData,
     }))
   );
 
   useEffect(() => {
     async function fetchUserName() {
-      if (!userId) return;
+      if (!isLoaded) return; // Wait for Clerk to load
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if we already have userData from localStorage
+      if (userData?.userName) {
+        setCurrentUserName(userData.userName);
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const data = await getUserData(userId, { username: true });
-        if (data?.username) {
-          setCurrentUserName(data.username);
-          setStore({ userData: { userName: data.username } });
+        const result = await getUserData({ username: true }, userId);
+        if (result.data?.username) {
+          setCurrentUserName(result.data.username);
+          setUserData(result.data.username, "");
         }
       } catch (err) {
         console.error("Error fetching username:", err);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchUserName();
-  }, [userId, setStore]);
+  }, [userId, isLoaded, setState, userData?.userName, setUserData]);
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
-    const newUsername = new FormData(e.currentTarget).get("username") as string;
+    const formData = new FormData(e.currentTarget);
+    const newUsername = formData.get("username") as string;
     if (!newUsername) return;
 
     try {
       await updateUserData({ username: newUsername });
       setCurrentUserName(newUsername);
-      setStore({ userData: { userName: newUsername } });
+      setUserData(newUsername, "");
     } catch (err) {
       console.error("Failed to save username:", err);
     }
@@ -58,7 +83,7 @@ export default function UserNameDisplay() {
     try {
       await updateUserData({ username: editValue });
       setCurrentUserName(editValue);
-      setStore({ userData: { userName: editValue } });
+      setUserData(editValue, "");
       setIsEditing(false);
     } catch (err) {
       console.error("Failed to save username:", err);
@@ -70,11 +95,23 @@ export default function UserNameDisplay() {
     try {
       await updateUserData({ username: "" });
       setCurrentUserName(null);
-      setStore({ userData: { userName: "" } });
+      setState({ userData: null });
     } catch (err) {
       console.error("Failed to delete username:", err);
     }
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+          <span className="text-sm text-gray-500">Loading your profile...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUserName) {
     return (

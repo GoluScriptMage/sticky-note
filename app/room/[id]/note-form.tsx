@@ -1,69 +1,138 @@
-import React, { useState } from "react";
+import React, { useState, RefObject } from "react";
 import { useStickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
 import { v4 as uuidv4 } from "uuid";
-import type { StickyNote } from "@/types/types";
+import type {
+  StickyNote,
+  ServerToClientEvents,
+  ClientToServerEvents,
+} from "@/types";
 import { motion } from "framer-motion";
-
 import { useParams } from "next/navigation";
-import { updateNote, createNote } from "@/lib/actions/note-actions";
+import {
+  updateNote as updateNoteInDb,
+  createNote,
+} from "@/lib/actions/note-actions";
+import { toast } from "sonner";
+import type { Socket } from "socket.io-client";
 
-export default function NoteForm() {
+interface NoteFormProps {
+  socket?: RefObject<Socket<ServerToClientEvents, ClientToServerEvents> | null>;
+}
+
+export default function NoteForm({ socket }: NoteFormProps) {
   const {
-    setStore,
+    closeNoteForm,
     userData,
-    coordinates,
-    editNote,
-    updateExistingNote,
+    formPosition,
+    editingNote,
     addNote,
+    updateNote,
+    deleteNote,
   } = useStickyStore(
     useShallow((state) => ({
-      coordinates: state.coordinates,
-      editNote: state.editNote,
-      setStore: state.setStore,
-      updateExistingNote: state.updateExistingNote,
+      formPosition: state.formPosition,
+      editingNote: state.editingNote,
+      closeNoteForm: state.closeNoteForm,
       addNote: state.addNote,
+      updateNote: state.updateNote,
+      deleteNote: state.deleteNote,
       userData: state.userData,
     }))
   );
 
-  const { id }: { id: string } = useParams();
+  const { id: roomId }: { id: string } = useParams();
 
   const [note, setNote] = useState<Partial<StickyNote>>({
-    noteName: editNote?.noteName || "",
-    content: editNote?.content || "",
-    createdBy: editNote?.createdBy || "Anonymous",
+    noteName: editingNote?.noteName || "",
+    content: editingNote?.content || "",
+    createdBy: editingNote?.createdBy || userData?.userName || "Anonymous",
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
-    if (editNote?.id) {
-      updateExistingNote({
-        id: editNote.id,
-        noteName: note.noteName,
-        content: note.content,
-      });
-      updateNote({
-        id: editNote.id,
-        noteName: note.noteName,
-        content: note.content,
-      });
-    } else {
-      const noteId = `${uuidv4().split("-")[0]}_${id?.split("-")[0]}`;
-      const newNote: StickyNote = {
-        id: noteId,
-        noteName: note.noteName || "Untitled",
-        content: note.content || "",
-        createdBy: userData?.userName || "Anonymous",
-        x: coordinates?.x ?? 400,
-        y: coordinates?.y ?? 300,
-      };
-      addNote(newNote);
-      createNote(newNote, id);
+    setIsSubmitting(true);
+
+    try {
+      if (editingNote?.id) {
+        // Update existing note - optimistic update
+        updateNote(editingNote.id, {
+          noteName: note.noteName ?? "",
+          content: note.content ?? "",
+        });
+
+        // Save to DB
+        const result = await updateNoteInDb({
+          id: editingNote.id,
+          noteName: note.noteName ?? "",
+          content: note.content ?? "",
+        });
+
+        if (result.error) {
+          // Rollback on failure - revert to original
+          updateNote(editingNote.id, {
+            noteName: editingNote.noteName,
+            content: editingNote.content,
+          });
+          toast.error("Failed to update note", { description: result.error });
+        } else {
+          toast.success("Note updated!");
+        }
+      } else {
+        // Create new note - optimistic update with temp ID
+        const tempId = `temp_${uuidv4().split("-")[0]}_${
+          roomId?.split("-")[0]
+        }`;
+        const newNote: StickyNote = {
+          id: tempId,
+          noteName: note.noteName ?? "Untitled",
+          content: note.content ?? "",
+          createdBy: userData?.userName ?? "Anonymous",
+          x: formPosition?.x ?? 400,
+          y: formPosition?.y ?? 300,
+        };
+
+        // Add to store instantly (optimistic)
+        addNote(newNote);
+
+        // Emit to socket for real-time sync
+        socket?.current?.emit("note_create", newNote);
+
+        // Save to DB
+        const result = await createNote(newNote, roomId);
+
+        if (result.error) {
+          // Rollback - remove the temp note
+          deleteNote(tempId);
+          // Emit rollback to socket
+          socket?.current?.emit("note_rollback", {
+            tempId,
+            error: result.error,
+          });
+          toast.error("Failed to create note", { description: result.error });
+        } else if (result.data) {
+          // Success - replace temp ID with real ID
+          updateNote(tempId, { id: result.data.id });
+          toast.success("Note created!");
+
+          // Emit confirmation to socket
+          socket?.current?.emit("note_confirm", {
+            tempId,
+            realId: result.data.id,
+          });
+        }
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+      console.error("Note submission error:", error);
+    } finally {
+      setIsSubmitting(false);
+      closeNoteForm();
     }
-
-    setStore({ showForm: false, editNote: null });
   };
 
   const handleChange = (
@@ -76,7 +145,7 @@ export default function NoteForm() {
   };
 
   const handleClose = () => {
-    setStore({ showForm: false, editNote: null });
+    closeNoteForm();
   };
 
   return (
@@ -154,15 +223,17 @@ export default function NoteForm() {
           <button
             type="button"
             onClick={handleClose}
-            className="px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-600 font-medium text-sm rounded-xl border border-gray-200 shadow-sm hover:shadow transition-all duration-200 active:scale-95"
+            disabled={isSubmitting}
+            className="px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-600 font-medium text-sm rounded-xl border border-gray-200 shadow-sm hover:shadow transition-all duration-200 active:scale-95 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-amber-500/25 hover:shadow-lg hover:shadow-amber-500/30 transition-all duration-200 active:scale-95"
+            disabled={isSubmitting}
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-amber-500/25 hover:shadow-lg hover:shadow-amber-500/30 transition-all duration-200 active:scale-95 disabled:opacity-50"
           >
-            {editNote?.id ? "Update" : "Create"}
+            {isSubmitting ? "Saving..." : editingNote?.id ? "Update" : "Create"}
           </button>
         </div>
       </div>

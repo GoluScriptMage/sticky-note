@@ -9,9 +9,11 @@ interface RoomActionProps {
 }
 
 export const RoomAction = ({ screenToWorld }: RoomActionProps) => {
-  const { setStore } = useStickyStore(
+  const { setState, openNoteForm, selectNote } = useStickyStore(
     useShallow((state) => ({
-      setStore: state.setStore,
+      setState: state.setState,
+      openNoteForm: state.openNoteForm,
+      selectNote: state.selectNote,
     }))
   );
 
@@ -20,17 +22,13 @@ export const RoomAction = ({ screenToWorld }: RoomActionProps) => {
       const target = (e.target as HTMLElement).closest(".ignore");
       if (target) {
         const noteId = target.getAttribute("data-note-id");
-        if (noteId) setStore({ selectNoteId: noteId });
+        if (noteId) selectNote(noteId);
         return;
       }
       const worldPos = screenToWorld(e.clientX, e.clientY);
-      setStore({
-        coordinates: { x: worldPos.x, y: worldPos.y },
-        showForm: true,
-        selectNoteId: null,
-      });
+      openNoteForm({ x: worldPos.x, y: worldPos.y });
     },
-    [screenToWorld, setStore]
+    [screenToWorld, openNoteForm, selectNote]
   );
 
   return { handleDoubleClick };

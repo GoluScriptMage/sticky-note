@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef, useCallback, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth, UserButton } from "@clerk/nextjs";
 import { useShallow } from "zustand/shallow";
 import { motion, useMotionTemplate, useTransform } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 import NoteForm from "./note-form";
 import StickyNoteComponent from "./sticky-note";
@@ -13,9 +14,14 @@ import { useStickyStore } from "@/store/useStickyStore";
 import { useSocket } from "@/hooks/useSocket";
 import { useCanvasTransform } from "@/hooks/useCanvasTransform";
 import { ZoomControls } from "./zoom-controls";
+import { updateNotePosition } from "@/lib/actions/note-actions";
+import { getUserData } from "@/lib/actions/user-action";
+
+// Auto-save interval for dirty notes (10 seconds)
+const AUTO_SAVE_INTERVAL = 10000;
 
 export default function CanvasPage() {
-  const number: number = 10;
+  const router = useRouter();
   const {
     springX,
     springY,
@@ -30,9 +36,12 @@ export default function CanvasPage() {
     scale,
   } = useCanvasTransform();
 
-  // Drag state - use useState for draggingNoteId to trigger re-renders
+  // Drag state
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Dirty notes tracking - notes that need position saved to DB
+  const [dirtyNotes, setDirtyNotes] = useState<Set<string>>(new Set());
 
   // Track current scale
   const [currentScale, setCurrentScale] = useState(1);
@@ -47,7 +56,6 @@ export default function CanvasPage() {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // Center the canvas
     x.set(viewportWidth / 2 - 200);
     y.set(viewportHeight / 2 - 100);
     scale.set(0.8);
@@ -55,54 +63,161 @@ export default function CanvasPage() {
 
   const {
     notes,
-    showForm,
-    selectNoteId,
-    setStore,
+    isFormOpen,
+    selectedNoteId,
+    setState,
     userData,
-    otherUsers,
+    remoteCursors,
     updateNote,
-    addDummyNotes,
-    coordinates,
+    formPosition,
+    openNoteForm,
+    closeNoteForm,
+    setUserData,
   } = useStickyStore(
     useShallow((state) => ({
       notes: state.notes,
-      showForm: state.showForm,
-      selectNoteId: state.selectNoteId,
-      setStore: state.setStore,
+      isFormOpen: state.isFormOpen,
+      selectedNoteId: state.selectedNoteId,
+      setState: state.setState,
       userData: state.userData,
-      otherUsers: state.otherUsers,
+      remoteCursors: state.remoteCursors,
       updateNote: state.updateNote,
-      addDummyNotes: state.addDummyNotes,
-      coordinates: state.coordinates,
+      formPosition: state.formPosition,
+      openNoteForm: state.openNoteForm,
+      closeNoteForm: state.closeNoteForm,
+      setUserData: state.setUserData,
     }))
   );
 
   const params: { id: string } = useParams();
-  const { userId } = useAuth();
+  const { userId, isLoaded } = useAuth();
   const userName = userData?.userName || "";
   const roomId = params.id;
 
-  if (!userId) {
-    throw new Error("Not logged in");
+  // State for loading user data
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  // Fetch and set user data if not available
+  useEffect(() => {
+    async function fetchAndSetUserData() {
+      if (!userId || !isLoaded) return;
+
+      // If userData is already loaded from localStorage, skip
+      if (userData?.userName) {
+        setIsLoadingUser(false);
+        return;
+      }
+
+      try {
+        const result = await getUserData({ username: true }, userId);
+        if (result.data?.username) {
+          setUserData(result.data.username, roomId);
+        }
+      } catch (err) {
+        console.error("Error fetching username:", err);
+      } finally {
+        setIsLoadingUser(false);
+      }
+    }
+    fetchAndSetUserData();
+  }, [userId, isLoaded, userData?.userName, setUserData, roomId]);
+
+  // Show loading state while Clerk auth is loading
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-600 mx-auto" />
+          <p className="mt-3 text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
   }
-  
-  const socket = useSocket(roomId, userId!, userName);
+
+  // Redirect to sign-in if not logged in (after loading completes)
+  if (!userId) {
+    router.push("/sign-in");
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-500">Redirecting to sign in...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const socket = useSocket({
+    userId: userId!,
+    roomId,
+    userName,
+    cursorColor: userData?.cursorColor || "#000000",
+  });
+
   const throttleRef = useRef(0);
   const THROTTLE_DELAY = 50;
 
-  // Background dots: maintain minimum 15px spacing for visibility at low zoom
+  // Background dots
   const bgSize = useTransform(springScale, (s) => {
     const baseSize = 20;
-    const size = Math.max(15, baseSize * s); // Minimum 15px spacing
+    const size = Math.max(15, baseSize * s);
     return `${size}px ${size}px`;
   });
   const bgPosition = useMotionTemplate`${springX}px ${springY}px`;
 
-  useEffect(() => {
-    addDummyNotes();
-  }, [addDummyNotes]);
+  // Note: Removed addDummyNotes - notes should be loaded from room DB
 
-  // Drag handlers - both mouse and touch
+  // =========================================================================
+  // DIRTY NOTES AUTO-SAVE
+  // =========================================================================
+
+  // Save dirty notes to DB when drag ends
+  useEffect(() => {
+    if (draggingNoteId === null && dirtyNotes.size > 0) {
+      // Drag ended, save all dirty notes
+      const saveNotes = async () => {
+        const notesToSave = Array.from(dirtyNotes);
+        setDirtyNotes(new Set()); // Clear dirty notes
+
+        for (const noteId of notesToSave) {
+          const note = notes.find((n) => n.id === noteId);
+          if (note) {
+            const result = await updateNotePosition(noteId, note.x, note.y);
+            if (result.error) {
+              console.error(
+                `Failed to save note ${noteId} position:`,
+                result.error
+              );
+            }
+          }
+        }
+      };
+      saveNotes();
+    }
+  }, [draggingNoteId, dirtyNotes, notes]);
+
+  // Auto-save interval for any remaining dirty notes
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (dirtyNotes.size > 0 && !draggingNoteId) {
+        const notesToSave = Array.from(dirtyNotes);
+        setDirtyNotes(new Set());
+
+        for (const noteId of notesToSave) {
+          const note = notes.find((n) => n.id === noteId);
+          if (note) {
+            await updateNotePosition(noteId, note.x, note.y);
+          }
+        }
+      }
+    }, AUTO_SAVE_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [dirtyNotes, draggingNoteId, notes]);
+
+  // =========================================================================
+  // DRAG HANDLERS
+  // =========================================================================
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!draggingNoteId) return;
@@ -110,6 +225,13 @@ export default function CanvasPage() {
       const newX = worldPos.x - dragOffsetRef.current.x;
       const newY = worldPos.y - dragOffsetRef.current.y;
       updateNote(draggingNoteId, { x: newX, y: newY });
+
+      // Emit real-time position to socket
+      socket.current?.emit("note_move", {
+        noteId: draggingNoteId,
+        x: newX,
+        y: newY,
+      });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -120,14 +242,27 @@ export default function CanvasPage() {
       const newX = worldPos.x - dragOffsetRef.current.x;
       const newY = worldPos.y - dragOffsetRef.current.y;
       updateNote(draggingNoteId, { x: newX, y: newY });
+
+      socket.current?.emit("note_move", {
+        noteId: draggingNoteId,
+        x: newX,
+        y: newY,
+      });
     };
 
     const handleMouseUp = () => {
+      if (draggingNoteId) {
+        // Mark note as dirty for DB save
+        setDirtyNotes((prev) => new Set(prev).add(draggingNoteId));
+      }
       setDraggingNoteId(null);
       dragOffsetRef.current = { x: 0, y: 0 };
     };
 
     const handleTouchEnd = () => {
+      if (draggingNoteId) {
+        setDirtyNotes((prev) => new Set(prev).add(draggingNoteId));
+      }
       setDraggingNoteId(null);
       dragOffsetRef.current = { x: 0, y: 0 };
     };
@@ -142,7 +277,7 @@ export default function CanvasPage() {
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [draggingNoteId, screenToWorld, updateNote]);
+  }, [draggingNoteId, screenToWorld, updateNote, socket]);
 
   const handleNoteDragStart = useCallback(
     (noteId: string, e: React.MouseEvent, noteX: number, noteY: number) => {
@@ -157,7 +292,15 @@ export default function CanvasPage() {
     },
     [screenToWorld]
   );
-  // TODO: Handle double click fn
+
+  // Double-click to create note
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const worldPos = screenToWorld(e.clientX, e.clientY);
+      openNoteForm({ x: worldPos.x, y: worldPos.y });
+    },
+    [screenToWorld, openNoteForm]
+  );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -165,24 +308,41 @@ export default function CanvasPage() {
       if (now - throttleRef.current < THROTTLE_DELAY) return;
       throttleRef.current = now;
       const worldPos = screenToWorld(e.clientX, e.clientY);
-      socket.current?.emit("mouse_move", { x: worldPos.x, y: worldPos.y });
+      socket.current?.emit("mouse_move", {
+        x: worldPos.x,
+        y: worldPos.y,
+        noteId: "",
+        userId: userId!,
+        timeStamp: now,
+      });
     },
-    [screenToWorld, socket]
+    [screenToWorld, socket, userId]
   );
 
   const handleCanvasClick = useCallback(() => {
-    if (!draggingNoteId) setStore({ selectNoteId: null });
-  }, [draggingNoteId, setStore]);
+    if (!draggingNoteId) setState({ selectedNoteId: null });
+  }, [draggingNoteId, setState]);
 
-  if (!userData) {
+  // Show loading while fetching user data
+  if (isLoadingUser) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-600 mx-auto" />
+          <p className="mt-3 text-gray-500">Setting up your workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show setup prompt only if user has no username set
+  if (!userData?.userName) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-500">
         <div className="text-center">
-          <p className="mb-4">Please set up your user identity first.</p>
+          <p className="mb-4">Please set up your username first.</p>
           <button
-            onClick={() => {
-              window.location.href = "/";
-            }}
+            onClick={() => router.push("/")}
             className="px-6 py-2 bg-black text-white rounded-lg hover:opacity-90 transition"
           >
             Go to Home
@@ -225,13 +385,13 @@ export default function CanvasPage() {
 
         <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
           <div className="bg-gray-900 text-white text-[10px] sm:text-xs px-2.5 py-1.5 sm:px-3 rounded-full font-medium shadow-md">
-            👥 {Object.keys(otherUsers).length + 1}
+            👥 {Object.keys(remoteCursors).length + 1}
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
       </div>
 
-      {/* // TODO:  Shift zoom to new File */}
+      {/* Zoom Controls */}
       <ZoomControls
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
@@ -282,33 +442,35 @@ export default function CanvasPage() {
               key={note.id}
               {...note}
               isDragging={draggingNoteId === note.id}
-              showButtons={selectNoteId === note.id && !draggingNoteId}
+              showButtons={selectedNoteId === note.id && !draggingNoteId}
+              socket={socket}
               onDragStart={handleNoteDragStart}
+              onSelect={(noteId) => setState({ selectedNoteId: noteId })}
             />
           ))}
 
-          {Object.entries(otherUsers).map(([id, data]) => (
+          {Object.entries(remoteCursors).map(([id, data]) => (
             <Cursor
               key={id}
               x={data.x || 0}
               y={data.y || 0}
               userName={data.userName || "Unknown"}
-              color={data.color || "#ff0000"}
+              color={data.cursorColor || "#ff0000"}
             />
           ))}
         </motion.div>
       </div>
 
       {/* Form Modal */}
-      {showForm && coordinates && (
+      {isFormOpen && formPosition && (
         <>
           <div
             className="fixed inset-0 bg-black/20 z-[9998]"
-            onClick={() => setStore({ showForm: false, editNote: null })}
+            onClick={closeNoteForm}
           />
           <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
             <div className="pointer-events-auto">
-              <NoteForm />
+              <NoteForm socket={socket} />
             </div>
           </div>
         </>

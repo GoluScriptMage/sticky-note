@@ -34,6 +34,18 @@ export type UserJoinedPayload = {
 
 export type UserLeftPayload = Omit<UserPayload, "cursorColor">;
 
+// Note confirmation payload for optimistic updates
+export interface NoteConfirmedPayload {
+  tempId: string;
+  realId: string;
+}
+
+// Note rollback payload for failed operations
+export interface NoteRollbackPayload {
+  tempId: string;
+  error?: string;
+}
+
 // Server to Client Events
 export interface ServerToClientEvents {
   user_joined: (data: UserJoinedPayload) => void; // When a new user joins
@@ -46,8 +58,8 @@ export interface ServerToClientEvents {
   note_update: (data: Partial<StickyNote>) => void;
   note_deleted: (noteId: string) => void;
   note_moved: (data: NoteMovedPayload) => void;
-  note_confirmed: (noteId: string) => void;
-  note_rollback: (noteId: string) => void; // Rollback note if conflict happens with db and couldn't saved
+  note_confirmed: (data: NoteConfirmedPayload) => void;
+  note_rollback: (data: NoteRollbackPayload) => void; // Rollback note if conflict happens with db and couldn't saved
 }
 
 // Client to server Events
@@ -61,8 +73,8 @@ export interface ClientToServerEvents {
   note_update: (note: StickyNote) => void;
   note_delete: (noteId: string, roomId: string) => void;
   note_move: (data: NoteMovedPayload) => void;
-  note_confirm: (noteId: string) => void;
-  note_rollback: (tempId: string) => void; // rollback
+  note_confirm: (data: NoteConfirmedPayload) => void;
+  note_rollback: (data: NoteRollbackPayload) => void; // rollback
 }
 
 export type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;

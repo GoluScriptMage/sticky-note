@@ -1,4 +1,4 @@
-import type { StickyNote } from "@/types/types";
+import type { StickyNote } from "@/types";
 
 // Dummy data for testing - positions in PIXELS (world space)
 // Notes are scattered across a 3000x2000 pixel canvas area
@@ -33,7 +33,7 @@ export const dummyNotes: StickyNote[] = [
   {
     id: "a4s7d3f5g",
     noteName: "Motivation Quote ✨",
-    createdBy: null,
+    createdBy: undefined,
     content:
       "The only way to do great work is to love what you do. - Steve Jobs",
     x: 150,

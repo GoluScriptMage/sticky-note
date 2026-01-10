@@ -11,13 +11,13 @@ export interface StickyStoreState {
   notes: StickyNote[];
   // User Data
   userData: UserData | null;
-  otherUsers: RemoteCursors;
+  remoteCursors: RemoteCursors;
 
   // UI State
-  showForm: boolean;
-  selectNoteId: string | null;
-  coordinates: Position | null;
-  editNote: Partial<StickyNote> | null;
+  isFormOpen: boolean;
+  selectedNoteId: string | null;
+  formPosition: Position | null;
+  editingNote: Partial<StickyNote> | null;
 
   // Internal State
   isDummyNotesAdded: boolean;
@@ -25,19 +25,24 @@ export interface StickyStoreState {
 
 // Store Actions
 export interface StickyStoreActions {
-  // Genric Update Store
-  setStore: (updates: Partial<StickyStoreState>) => void;
+  // Generic Update Store
+  setState: (updates: Partial<StickyStoreState>) => void;
 
   // Note Actions
   addNote: (note: StickyNote) => void;
   updateNote: (id: string, data: Partial<StickyNote>) => void;
   deleteNote: (noteId: string) => void;
-  handleNoteEdit: (noteId: string) => void;
+
+  // Form Actions
+  openNoteForm: (position: Position, note?: StickyNote) => void;
+  closeNoteForm: () => void;
+  selectNote: (noteId: string | null) => void;
+  startEditingNote: (noteId: string) => void;
 
   // User Actions
-  updateUserData: (userName: string, roomId: string) => void;
-  updateOtherUser: (userId: string, data: Partial<RemoteCursor>) => void;
-  removeOtherUser: (userId: string) => void;
+  setUserData: (userName: string, roomId: string) => void;
+  updateRemoteCursor: (userId: string, data: Partial<RemoteCursor>) => void;
+  removeRemoteCursor: (userId: string) => void;
 
   // Dev Test
   addDummyNotes: () => void;

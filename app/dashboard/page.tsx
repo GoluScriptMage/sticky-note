@@ -33,8 +33,8 @@ export default function Home() {
 
   const joinRoomHandler = async () => {
     try {
-      const isValid: boolean = await verifyRoom(roomInput);
-      if (isValid) {
+      const result = await verifyRoom(roomInput);
+      if (result.data) {
         router.push(`/room/${roomInput}`);
       } else {
         setIsLoadingJoin(false);
@@ -42,7 +42,6 @@ export default function Home() {
           description: "Please check room Id and try Again!.",
           duration: 12000,
         });
-
       }
     } catch (error) {
       console.error("Error Verifying room:", error);

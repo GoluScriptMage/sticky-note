@@ -4,7 +4,7 @@ import { db } from "../db";
 import type { Prisma } from "@prisma/client";
 import { actionWrapper, ensure } from "../utils";
 import { getAuthUser } from "./actions-utils";
-import { UserData } from "../../types/types";
+import type { UserData } from "@/types";
 
 // get any of user's data - (for auth user no id needed or else provide id)
 export async function getUserData(fields: Prisma.UserSelect, userId?: string) {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
 import ShowNavbar from "./(home)/show-navbar";
 
@@ -33,7 +33,7 @@ export default function RootLayout({
         >
           <ShowNavbar />
           {children}
-          <Toaster richColors closeButton position="top-right" />
+          <Toaster richColors closeButton position="top-right" expand={true} />
         </body>
       </html>
     </ClerkProvider>

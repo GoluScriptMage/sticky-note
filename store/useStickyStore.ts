@@ -2,7 +2,6 @@ import { dummyNotes } from "@/constants/dummyData";
 import type {
   Position,
   StickyNote,
-  UserData,
   RemoteCursors,
   RemoteCursor,
   StickyStore,
@@ -15,19 +14,26 @@ import { persist } from "zustand/middleware";
 export const useStickyStore = create<StickyStore>()(
   persist(
     (set, get) => ({
+      // State
       notes: [],
       userData: null,
-      coordinates: null,
-      showForm: false,
-      selectNoteId: null,
-      editNote: null,
-      otherUsers: {},
-      // offSet: null,
+      formPosition: null,
+      isFormOpen: false,
+      selectedNoteId: null,
+      editingNote: null,
+      remoteCursors: {},
       isDummyNotesAdded: false,
 
-      // For any Logic to update state
-      setStore: (updates: Partial<StickyStoreState>) => {
+      // Generic state update
+      setState: (updates: Partial<StickyStoreState>) => {
         set(updates);
+      },
+
+      // Note Actions
+      addNote: (newNote: StickyNote) => {
+        set((state) => ({
+          notes: [...state.notes, newNote],
+        }));
       },
 
       updateNote: (id: string, data: Partial<StickyNote>) => {
@@ -38,82 +44,108 @@ export const useStickyStore = create<StickyStore>()(
         }));
       },
 
-      // add dummy notes - only adds if notes array is empty
-      addDummyNotes: () => {
-        const currentNotes = get().notes;
-        if (currentNotes.length === 0) {
-          set({ notes: dummyNotes, isDummyNotesAdded: true });
-        }
-      },
-
-      //update user data
-      updateUserData: (userName: string, roomId: string) => {
-        set(() => ({
-          userData: {
-            userName,
-            roomId,
-            cursorColor: "#000000", // Default color, customize as needed
-          },
-        }));
-      },
-
-      // Update notes array
-      addNote: (newNote: StickyNote) => {
-        set((state) => ({
-          notes: [...state.notes, newNote],
-        }));
-      },
-
-      // update existing note
-      updateExistingNote: (updateNote: Partial<StickyNote>) => {
-        set((state) => ({
-          notes: state.notes.map((n) => {
-            return n.id === updateNote.id ? { ...n, ...updateNote } : n;
-          }),
-        }));
-      },
-
-      // If note delete is triggered
       deleteNote: (noteId: string) => {
         set((state) => ({
           notes: state.notes.filter((note) => note.id !== noteId),
         }));
       },
 
-      // If note edit is triggered
-      handleNoteEdit: (noteId: string) => {
-        const note = get().notes.find((n) => n.id === noteId);
-        if (note) {
-          set(() => ({
-            coordinates: { x: note.x, y: note.y },
-            showForm: true,
-            editNote: note,
-          }));
-        }
-      },
-
-      // Alias for type compatibility
-      updateOtherUser: (userId: string, data: Partial<RemoteCursor>) => {
-        set((state) => {
-          const newOtherUsers = {
-            ...state.otherUsers,
-            [userId]: { ...(state.otherUsers[userId] || {}), ...data },
-          };
-          return { otherUsers: newOtherUsers };
+      // Form Actions
+      openNoteForm: (position: Position, note?: StickyNote) => {
+        set({
+          formPosition: position,
+          isFormOpen: true,
+          editingNote: note ?? null,
         });
       },
 
-      // Alias for type compatibility
-      removeOtherUser: (userId: string) => {
-        const newData: RemoteCursors = { ...get().otherUsers };
-        delete newData[userId];
-        set(() => ({
-          otherUsers: { ...newData },
-        }));
+      closeNoteForm: () => {
+        set({
+          isFormOpen: false,
+          formPosition: null,
+          editingNote: null,
+        });
+      },
+
+      selectNote: (noteId: string | null) => {
+        set({ selectedNoteId: noteId });
+      },
+
+      startEditingNote: (noteId: string) => {
+        const note = get().notes.find((n) => n.id === noteId);
+        if (note) {
+          set({
+            formPosition: { x: note.x, y: note.y },
+            isFormOpen: true,
+            editingNote: note,
+          });
+        }
+      },
+
+      // User Actions
+      setUserData: (userName: string, roomId: string) => {
+        // Generate a bright, visible cursor color
+        const colors = [
+          "#FF4136", // Red
+          "#FF851B", // Orange
+          "#FFDC00", // Yellow
+          "#2ECC40", // Green
+          "#00D9FF", // Cyan
+          "#0074D9", // Blue
+          "#B10DC9", // Purple
+          "#F012BE", // Magenta
+          "#01FF70", // Lime
+        ];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+        set({
+          userData: {
+            userName,
+            roomId,
+            cursorColor: randomColor,
+          },
+        });
+      },
+
+      updateRemoteCursor: (userId: string, data: Partial<RemoteCursor>) => {
+        set((state) => {
+          const existingCursor = state.remoteCursors[userId] || {
+            x: 0,
+            y: 0,
+            userName: "",
+            cursorColor: "#000000",
+          };
+          return {
+            remoteCursors: {
+              ...state.remoteCursors,
+              [userId]: { ...existingCursor, ...data },
+            },
+          };
+        });
+      },
+
+      removeRemoteCursor: (userId: string) => {
+        set((state) => {
+          const { [userId]: _, ...rest } = state.remoteCursors;
+          return { remoteCursors: rest };
+        });
+      },
+
+      // Dev Test
+      addDummyNotes: () => {
+        const currentNotes = get().notes;
+        if (currentNotes.length === 0) {
+          set({ notes: dummyNotes, isDummyNotesAdded: true });
+        }
       },
     }),
     {
       name: "sticky-store",
+      partialize: (state) => ({
+        notes: state.notes,
+        isDummyNotesAdded: state.isDummyNotesAdded,
+        userData: state.userData, // Persist user data including userName
+      }),
     }
   )
 );

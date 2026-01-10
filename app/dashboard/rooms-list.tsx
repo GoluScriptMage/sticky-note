@@ -32,17 +32,20 @@ export default function RoomsListDisplay() {
     const fetchRooms = async () => {
       try {
         if (!userId) return;
-        const data = await getUserData(userId, {
-          rooms: {
-            select: {
-              id: true,
-              roomName: true,
+        const result = await getUserData(
+          {
+            rooms: {
+              select: {
+                id: true,
+                roomName: true,
+              },
             },
           },
-        });
-        if (!data) return;
+          userId
+        );
+        if (!result.data) return;
         // Reverse to show newest first (assuming they're added in order)
-        setRecentRooms((data.rooms ?? []).reverse());
+        setRecentRooms((result.data.rooms ?? []).reverse());
       } catch (error) {
         console.log("Error fetching rooms:", error);
       } finally {

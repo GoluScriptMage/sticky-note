@@ -61,31 +61,33 @@ export async function POST(req: Request) {
     case "user.created":
       {
         console.log("👤 Creating user in database...");
-        const {
-          id,
-          email_addresses,
-          first_name,
-          last_name,
-          image_url,
-          username,
-        } = evt.data as WebhookEvent["data"] & { username?: string };
+        const data = evt.data as {
+          id: string;
+          email_addresses: Array<{ email_address: string }>;
+          first_name: string | null;
+          last_name: string | null;
+          image_url: string | null;
+          username: string | null;
+        };
 
-        const email = email_addresses[0]?.email_address ?? "";
-        const fullName = `${first_name ?? ""} ${last_name ?? ""}`.trim();
-        const safeUsername = username?.trim() || "";
+        const email = data.email_addresses[0]?.email_address ?? "";
+        const fullName = `${data.first_name ?? ""} ${
+          data.last_name ?? ""
+        }`.trim();
+        const safeUsername = data.username?.trim() || "";
 
         try {
           await db.user.create({
             data: {
-              clerkId: id,
+              clerkId: data.id,
               email,
               name: fullName || safeUsername,
               username: safeUsername,
-              imageUrl: image_url ?? null,
+              imageUrl: data.image_url ?? null,
             },
           });
 
-          console.log("✅ User created in DB with clerkId: ", id);
+          console.log("✅ User created in DB with clerkId: ", data.id);
         } catch (error) {
           console.error("❌ Error creating user in DB:", error);
           throw error;
@@ -94,35 +96,44 @@ export async function POST(req: Request) {
       break;
     case "user.updated":
       {
-        const { id, email_addresses, first_name, last_name, image_url } =
-          evt.data;
+        const data = evt.data as {
+          id: string;
+          email_addresses: Array<{ email_address: string }>;
+          first_name: string | null;
+          last_name: string | null;
+          image_url: string | null;
+        };
+        const fullName = `${data.first_name ?? ""} ${
+          data.last_name ?? ""
+        }`.trim();
+
         // Update user in db
         await db.user.update({
           where: {
-            clerkId: id,
+            clerkId: data.id,
           },
           data: {
-            email: email_addresses[0]?.email_address ?? "",
-            name: `${first_name ?? ""} ${last_name ?? ""}`.trim() || null,
-            imageUrl: image_url ?? null,
+            email: data.email_addresses[0]?.email_address ?? "",
+            name: fullName || undefined,
+            imageUrl: data.image_url ?? null,
           },
         });
-        console.log("User updated in DB with clerkId: ", id);
+        console.log("User updated in DB with clerkId: ", data.id);
       }
       break;
 
     case "user.deleted":
       {
-        const { id } = evt.data;
+        const data = evt.data as { id: string };
 
-        // Delte the use from db
+        // Delete the user from db
         await db.user.delete({
           where: {
-            clerkId: id,
+            clerkId: data.id,
           },
         });
 
-        console.log("User deleted from Db with Clerk ID:", id);
+        console.log("User deleted from Db with Clerk ID:", data.id);
       }
       break;
 

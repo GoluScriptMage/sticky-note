@@ -19,7 +19,10 @@ export type {
   ServerToClientEvents,
   TypedSocket,
   UserJoinedPayload,
-  UserLeftPayload
+  UserLeftPayload,
+  NoteMovedPayload,
+  NoteConfirmedPayload,
+  NoteRollbackPayload,
 } from "./socket.types";
 
 export type {

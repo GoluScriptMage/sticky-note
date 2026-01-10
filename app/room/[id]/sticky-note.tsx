@@ -1,19 +1,28 @@
-import { useStickyStore, type StickyStore } from "@/store/useStickyStore";
+import { useStickyStore } from "@/store/useStickyStore";
 import { useShallow } from "zustand/shallow";
-import type { StickyNote } from "@/types/types";
-import React from "react";
+import type {
+  StickyNote,
+  ServerToClientEvents,
+  ClientToServerEvents,
+} from "@/types";
+import React, { RefObject } from "react";
 import { motion } from "framer-motion";
-import { deleteNote } from "@/lib/actions/note-actions";
+import { deleteNote as deleteNoteFromDb } from "@/lib/actions/note-actions";
+import { toast } from "sonner";
+import type { Socket } from "socket.io-client";
+import { useParams } from "next/navigation";
 
 interface StickyNoteProps extends StickyNote {
   showButtons?: boolean;
   isDragging?: boolean;
+  socket?: RefObject<Socket<ServerToClientEvents, ClientToServerEvents> | null>;
   onDragStart?: (
     noteId: string,
     e: React.MouseEvent,
     noteX: number,
     noteY: number
   ) => void;
+  onSelect?: (noteId: string) => void;
 }
 
 const NOTE_WIDTH = 260;
@@ -87,14 +96,15 @@ export default function StickyNoteComponent({
   content,
   x,
   y,
+  socket,
   onDragStart,
+  onSelect,
 }: StickyNoteProps) {
-  const { handleNoteEdit, handleNoteDelete }: StickyStore = useStickyStore(
+  const { id: roomId }: { id: string } = useParams();
+  const { startEditingNote, deleteNote } = useStickyStore(
     useShallow((state) => ({
-      notes: state.notes,
-      setStore: state.setStore,
-      handleNoteEdit: state.handleNoteEdit,
-      handleNoteDelete: state.handleNoteDelete,
+      startEditingNote: state.startEditingNote,
+      deleteNote: state.deleteNote,
     }))
   );
 
@@ -111,9 +121,27 @@ export default function StickyNoteComponent({
     }
   };
 
-  // Touch handler for mobile drag
+  // Handle click/tap to select note and show buttons
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onSelect && !isDragging) {
+      onSelect(id);
+    }
+  };
+
+  // Touch handler for mobile - first tap selects, subsequent taps on selected note can drag
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (showButtons) return;
+    e.stopPropagation();
+
+    // If not selected yet, just select it (don't start drag)
+    if (!showButtons) {
+      if (onSelect) {
+        onSelect(id);
+      }
+      return; // Don't start dragging on first tap
+    }
+
+    // If already selected and user taps again, allow dragging
     if (onDragStart && e.touches.length === 1) {
       const touch = e.touches[0];
       // Create a synthetic mouse event
@@ -125,6 +153,30 @@ export default function StickyNoteComponent({
       } as React.MouseEvent;
       onDragStart(id, syntheticEvent, x, y);
     }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // Optimistic delete - remove from UI immediately
+    deleteNote(id);
+
+    // Emit to socket for real-time sync
+    socket?.current?.emit("note_delete", id, roomId);
+
+    // Delete from DB
+    const result = await deleteNoteFromDb(id);
+    if (result.error) {
+      toast.error("Failed to delete note", { description: result.error });
+      // Note: Could implement rollback here by re-adding the note
+    } else {
+      toast.success("Note deleted");
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    startEditingNote(id);
   };
 
   return (
@@ -145,6 +197,7 @@ export default function StickyNoteComponent({
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
+      onClick={handleClick}
       data-note-id={id}
       style={{
         left: x,
@@ -158,6 +211,8 @@ export default function StickyNoteComponent({
         ${
           isDragging
             ? "shadow-2xl shadow-black/25 cursor-grabbing"
+            : showButtons
+            ? "shadow-xl ring-2 ring-amber-400 cursor-pointer"
             : "shadow-lg hover:shadow-xl cursor-grab"
         }
         group touch-none select-none
@@ -178,10 +233,7 @@ export default function StickyNoteComponent({
           {showButtons && (
             <div className="flex gap-1 -mt-0.5 -mr-1">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNoteEdit(id);
-                }}
+                onClick={handleEdit}
                 className="w-7 h-7 flex items-center justify-center bg-white/80 hover:bg-blue-500 text-gray-600 hover:text-white rounded-lg shadow-sm hover:shadow transition-all duration-150 active:scale-90"
                 title="Edit"
               >
@@ -200,12 +252,7 @@ export default function StickyNoteComponent({
               </button>
 
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNoteDelete(id);
-                  console.log("Deleting noteId:", id);
-                  deleteNote(id);
-                }}
+                onClick={handleDelete}
                 className="w-7 h-7 flex items-center justify-center bg-white/80 hover:bg-red-500 text-gray-600 hover:text-white rounded-lg shadow-sm hover:shadow transition-all duration-150 active:scale-90"
                 title="Delete"
               >

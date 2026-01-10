@@ -1,25 +1,27 @@
 "use server";
 
-import type { StickyNote } from "@/types/types";
+import type { StickyNote } from "@/types";
 import { db } from "../db";
-import { actionWrapper, ensure, getAuthUser } from "../utils";
+import { actionWrapper, ensure } from "../utils";
+import { getCurrentUser } from "./auth";
 
 type NoteData = Pick<StickyNote, "id" | "content" | "noteName">;
 
 // create a new note
 export async function createNote(data: Partial<StickyNote>, roomId: string) {
   return actionWrapper(async () => {
-    // Step 1
-    const user = await getAuthUser();
+    const user = await getCurrentUser();
 
-    // Step 2. Create the note
     const newNote = await db.note.create({
       data: {
         id: data.id,
-        ...data,
+        noteName: data.noteName ?? "Untitled",
+        content: data.content ?? "",
+        x: data.x ?? 0,
+        y: data.y ?? 0,
         roomId,
         userId: user.id,
-        createdBy: user.username,
+        createdBy: user.username ?? "Anonymous",
       },
     });
     return ensure(newNote, "Create note failed!");
@@ -29,10 +31,8 @@ export async function createNote(data: Partial<StickyNote>, roomId: string) {
 // update an existing note for - (only the owner)
 export async function updateNote(data: NoteData) {
   return actionWrapper(async () => {
-    // step 1. Check for user auth
-    const user = await getAuthUser();
+    const user = await getCurrentUser();
 
-    // Step 2. update the note
     const updatedNote = await db.note.update({
       where: {
         id: data.id,
@@ -44,49 +44,74 @@ export async function updateNote(data: NoteData) {
       },
     });
 
-    // step 3. Return the updated note
     return ensure(updatedNote, "Update note failed!");
+  });
+}
+
+// Update note position after drag (x, y coordinates)
+export async function updateNotePosition(noteId: string, x: number, y: number) {
+  return actionWrapper(async () => {
+    const user = await getCurrentUser();
+
+    const updatedNote = await db.note.update({
+      where: {
+        id: noteId,
+        userId: user.id,
+      },
+      data: {
+        x,
+        y,
+      },
+    });
+
+    return ensure(updatedNote, "Update note position failed!");
   });
 }
 
 // Delete note for - (only the owner)
 export async function deleteNote(noteId: string) {
   return actionWrapper(async () => {
-    // Step 1. Check for user auth
-    const user = await getAuthUser();
+    const user = await getCurrentUser();
 
-    // Step 2. Delete the note
-    const deleteNote = await db.note.delete({
+    const deletedNote = await db.note.delete({
       where: {
         id: noteId,
         userId: user.id,
       },
     });
-    return ensure(deleteNote, "Delete note failed!");
+    return ensure(deletedNote, "Delete note failed!");
   });
 }
 
 // get user's notes -  for many notes use getUserData
 export async function getUserNote(noteId?: string) {
   return actionWrapper(async () => {
-    // Step 1. Get authenticated user
-     await getAuthUser();
+    await getCurrentUser();
 
-    // Step 2. Find user with notes from DATABASE
-    const userWithNotes = await db.note.findUnique({
+    const note = await db.note.findUnique({
       where: {
-        id: noteId, // Get notes for specific user or auth user
-      },
-      include: {
-        notes: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
+        id: noteId,
       },
     });
 
-    // Step 3. Return notes
-    return ensure(userWithNotes?.notes || [], "No notes found for user");
+    return ensure(note, "Note not found");
+  });
+}
+
+// Get all notes for a room
+export async function getRoomNotes(roomId: string) {
+  return actionWrapper(async () => {
+    await getCurrentUser();
+
+    const notes = await db.note.findMany({
+      where: {
+        roomId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return notes;
   });
 }

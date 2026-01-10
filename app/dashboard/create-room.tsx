@@ -26,14 +26,17 @@ export default function CreateRoomDisplay({
     }
     setLoading(true);
 
-    const roomName = new FormData(e.currentTarget as HTMLFormElement).get(
-      "roomName"
-    ) as string;
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const roomName = formData.get("roomName") as string;
 
     try {
-      const newRoomId: string = await createRoom(roomName);
+      const result = await createRoom(roomName);
       setLoading(false);
-      router.push(`/room/${newRoomId}`);
+      if (result.data) {
+        router.push(`/room/${result.data}`);
+      } else {
+        toast.error(result.error || "Failed to create room");
+      }
     } catch (error) {
       setLoading(false);
       toast.error("Failed to create room");

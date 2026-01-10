@@ -1,7 +1,8 @@
 "use server";
 
 import { db } from "../db";
-import { actionWrapper, ensure, getAuthUser } from "../utils";
+import { actionWrapper, ensure } from "../utils";
+import { getAuthUser } from "./actions-utils";
 
 //Verify room before joining if it exists or not
 export async function verifyRoom(roomId: string) {
