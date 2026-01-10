@@ -99,10 +99,10 @@ app.use(cors());
 
 // Allow CORS from frontend (production and development)
 const allowedOrigins = [
-  "http://localhost:3000",           // Local development
-  "http://192.168.29.22:3000",       // Local network
-  "http://192.168.1.64:3000",        // Local network
-  "https://sticky-sync.vercel.app",  // Replace with your actual Vercel domain
+  "http://localhost:3000",                                                         // Local development
+  "http://192.168.29.22:3000",                                                     // Local network
+  "http://192.168.1.64:3000",                                                      // Local network
+  "https://sticky-note-3hg2thvdb-goludhakds-projects-f17be086.vercel.app",         // Production Vercel domain
 ];
 
 const io = new Server<
