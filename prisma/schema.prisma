@@ -43,7 +43,7 @@ model Room {
 
 model Note {
   id              String     
-  noteName        String
+  noteName        String @unique
   content         String
   createdBy      String
   x               Float    @default(0)
@@ -62,7 +62,6 @@ model Note {
   room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
 
-  @@index([id])
   @@index([roomId, createdBy])
   @@index([userId])
 }

@@ -7,6 +7,7 @@
     "build": "next build ",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "db:push": "dotenv -- npx prisma db push",
     "db:generate": "npx prisma generate",
     "db:studio": "dotenv -e .env -- npx prisma studio"
