@@ -45,3 +45,4 @@
   "overrides": {
     "@clerk/clerk-react": "^5.59.2"
   }
+}
