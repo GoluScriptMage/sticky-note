@@ -45,7 +45,8 @@ export default function RoomsListDisplay() {
         );
         if (!result.data) return;
         // Reverse to show newest first (assuming they're added in order)
-        setRecentRooms((result.data.rooms ?? []).reverse());
+        const rooms = (result.data as any).rooms as RoomItem[];
+        setRecentRooms([...(rooms ?? [])].reverse());
       } catch (error) {
         console.log("Error fetching rooms:", error);
       } finally {
