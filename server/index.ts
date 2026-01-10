@@ -97,6 +97,14 @@ const app = express();
 const httpServer = createServer(app);
 app.use(cors());
 
+// Allow CORS from frontend (production and development)
+const allowedOrigins = [
+  "http://localhost:3000",           // Local development
+  "http://192.168.29.22:3000",       // Local network
+  "http://192.168.1.64:3000",        // Local network
+  "https://sticky-sync.vercel.app",  // Replace with your actual Vercel domain
+];
+
 const io = new Server<
   ClientToServerEvents,
   ServerToClientEvents,
@@ -104,11 +112,7 @@ const io = new Server<
   SocketData
 >(httpServer, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "http://192.168.29.22:3000",
-      "http://192.168.1.64:3000",
-    ],
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
   },
 });
@@ -243,9 +247,10 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = 3001;
+// Use dynamic port for deployment (Railway/Render assigns PORT env var)
+const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Socket.IO server running at:`);
-  console.log(`  - Local:   http://localhost:${PORT}`);
-  console.log(`  - Network: http://192.168.1.64:${PORT}`);
+  console.log(`  - Port: ${PORT}`);
+  console.log(`  - Environment: ${process.env.NODE_ENV || 'development'}`);
 });
