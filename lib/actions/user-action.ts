@@ -7,7 +7,7 @@ import { getAuthUser } from "./actions-utils";
 import type { UserData } from "@/types";
 
 // get any of user's data - (for auth user no id needed or else provide id)
-export async function getUserData(fields: Prisma.UserFindUniqueArgs["select"], userId?: string) {
+export async function getUserData(fields: any, userId?: string) {
   return actionWrapper(async () => {
     // Step 1. Get the auth user
     const user = await getAuthUser();
