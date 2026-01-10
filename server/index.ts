@@ -99,10 +99,10 @@ app.use(cors());
 
 // Allow CORS from frontend (production and development)
 const allowedOrigins = [
-  "http://localhost:3000",                                                         // Local development
-  "http://192.168.29.22:3000",                                                     // Local network
-  "http://192.168.1.64:3000",                                                      // Local network
-  "https://sticky-note-3hg2thvdb-goludhakds-projects-f17be086.vercel.app",         // Production Vercel domain
+  "http://localhost:3000", // Local development
+  "http://192.168.29.22:3000", // Local network
+  "http://192.168.1.64:3000", // Local network
+  "https://sticky-note-3hg2thvdb-goludhakds-projects-f17be086.vercel.app", // Production Vercel domain
 ];
 
 const io = new Server<
@@ -252,5 +252,5 @@ const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Socket.IO server running at:`);
   console.log(`  - Port: ${PORT}`);
-  console.log(`  - Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`  - Environment: ${process.env.NODE_ENV || "development"}`);
 });
