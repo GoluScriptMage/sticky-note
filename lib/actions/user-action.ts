@@ -26,7 +26,7 @@ export async function getUserData(fields: any, userId?: string) {
 }
 
 // update any of user's data (auto-syncs user if not found)
-export async function updateUserData(data: Prisma.UserUpdateInput) {
+export async function updateUserData(data: any) {
   return actionWrapper(async () => {
     // Step 1.
     const user = await getAuthUser();
